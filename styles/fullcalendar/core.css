@@ -1,0 +1,108 @@
+﻿/* Minimal FullCalendar core styling for dark admin UI */
+.fc {
+  --fc-border-color: rgba(255, 255, 255, 0.08);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.03);
+  --fc-neutral-text-color: rgba(255, 255, 255, 0.7);
+  --fc-event-bg-color: rgba(99, 102, 241, 0.85);
+  --fc-event-border-color: rgba(99, 102, 241, 0.95);
+  --fc-event-text-color: #ffffff;
+  --fc-now-indicator-color: #ef4444;
+  font-family: inherit;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.fc .fc-scrollgrid {
+  border: 1px solid var(--fc-border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.fc .fc-col-header-cell {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--fc-border-color);
+}
+
+.fc .fc-col-header-cell-cushion {
+  display: block;
+  padding: 8px 6px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.fc .fc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 6px 6px;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.fc .fc-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.fc .fc-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):hover {
+  background: rgba(99, 102, 241, 0.8);
+  border-color: rgba(99, 102, 241, 1);
+  color: #ffffff;
+}
+
+.fc .fc-event {
+  background: var(--fc-event-bg-color);
+  border: 1px solid var(--fc-event-border-color);
+  color: var(--fc-event-text-color);
+  border-radius: 6px;
+  padding: 2px 4px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+}
+
+.fc .fc-event-title {
+  font-weight: 600;
+}
+
+.fc .fc-event-time {
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.fc .fc-popover {
+  background: #0b1220;
+  border: 1px solid var(--fc-border-color);
+  color: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fc .fc-popover-header {
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--fc-border-color);
+  padding: 8px 10px;
+  font-weight: 600;
+}

@@ -1,0 +1,22 @@
+﻿/* Minimal FullCalendar resource timegrid styling */
+.fc .fc-resource-timegrid-divider {
+  background: var(--fc-border-color);
+  width: 1px;
+}
+
+.fc .fc-datagrid-cell {
+  border-bottom: 1px solid var(--fc-border-color);
+}
+
+.fc .fc-datagrid-cell-frame {
+  padding: 6px 8px;
+}
+
+.fc .fc-datagrid-cell-cushion {
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.fc .fc-resource-group {
+  background: rgba(255, 255, 255, 0.02);
+}

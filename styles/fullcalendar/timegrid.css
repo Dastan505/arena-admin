@@ -1,0 +1,37 @@
+﻿/* Minimal FullCalendar timegrid styling */
+.fc .fc-timegrid-slot {
+  border-bottom: 1px solid var(--fc-border-color);
+  height: 2rem;
+}
+
+.fc .fc-timegrid-slot-label {
+  padding: 0 6px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.fc .fc-timegrid-axis {
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid var(--fc-border-color);
+}
+
+.fc .fc-timegrid-col {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fc .fc-timegrid-col-frame {
+  min-height: 100%;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--fc-now-indicator-color);
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--fc-now-indicator-color);
+}
+
+.fc .fc-timegrid-divider {
+  background: var(--fc-border-color);
+  width: 1px;
+}
