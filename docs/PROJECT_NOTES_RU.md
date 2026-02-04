@@ -7,7 +7,13 @@
 - **Домен админки**: `admin.arena-api.ru`
 - **Directus**: `directus.arena-api.ru`
 - **Приложение**: Next.js (админка)
-- **База данных**: за Directus (тип уточнить: Postgres/MySQL и т.п.)
+- **БД**: Postgres в Docker (контейнер `directus-postgres`)
+  - DB_CLIENT: `pg`
+  - DB_HOST: `postgres` (docker network)
+  - DB_PORT: `5432`
+  - DB_DATABASE: `directus`
+  - DB_USER: `directus`
+- **База данных**: Postgres (через Directus)
 
 ## 2) Архитектура (как всё связано)
 ```
@@ -89,4 +95,3 @@ sudo tail -n 50 /var/log/nginx/error.log
 - Тип БД (Postgres/MySQL), где хостится, как делать бэкапы.
 - Политика хранения Directus токена.
 - Авто‑деплой или ручной деплой (сейчас — ручной).
-
