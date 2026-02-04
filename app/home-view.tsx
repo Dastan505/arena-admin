@@ -137,26 +137,45 @@ export default function HomeView() {
       ? resources
       : resources.filter((arena) => arena.id === selectedArenaId);
 
-  const { eventsByDay, maxDayCount } = useMemo(() => {
-    const counts: Record<number, number> = {};
+  const { occupancyByDay } = useMemo(() => {
+    const usedSlots: Record<number, number> = {};
     const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+    const slotsPerDay = 16; // 07:00 - 22:00 (16 слотов по часу)
+    const arenasCount = Math.max(filteredResources.length, 0);
+    const capacity = arenasCount * slotsPerDay;
+
     for (const event of events) {
       const dateStr = event.start?.split("T")[0];
       if (!dateStr || !dateStr.startsWith(monthKey)) continue;
       const day = Number(dateStr.split("-")[2]);
       if (!Number.isFinite(day)) continue;
-      counts[day] = (counts[day] || 0) + 1;
-    }
-    const values = Object.values(counts);
-    return { eventsByDay: counts, maxDayCount: values.length ? Math.max(...values) : 0 };
-  }, [events, currentMonth]);
 
-  const getDayRingClass = (count: number, maxCount: number) => {
-    if (!count) return "";
-    if (!maxCount || maxCount <= 1) return "ring-2 ring-emerald-400/70";
-    const ratio = count / maxCount;
-    if (ratio <= 0.33) return "ring-2 ring-emerald-400/70";
-    if (ratio <= 0.66) return "ring-2 ring-yellow-400/70";
+      const start = event.start ? new Date(event.start) : null;
+      const end = event.end ? new Date(event.end) : null;
+      const minutes =
+        start && end
+          ? Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000))
+          : 60;
+      const slotUnits = Math.max(1, Math.ceil(minutes / 60));
+
+      usedSlots[day] = (usedSlots[day] || 0) + slotUnits;
+    }
+
+    const occupancy: Record<number, number> = {};
+    Object.keys(usedSlots).forEach((dayKey) => {
+      const day = Number(dayKey);
+      if (!Number.isFinite(day)) return;
+      occupancy[day] = capacity > 0 ? Math.min(1, usedSlots[day] / capacity) : 0;
+    });
+
+    return { occupancyByDay: occupancy };
+  }, [events, currentMonth, filteredResources.length]);
+
+  const getDayRingClass = (ratio: number) => {
+    if (!ratio || ratio <= 0) return "";
+    if (ratio <= 0.2) return "ring-2 ring-emerald-400/70";
+    if (ratio <= 0.5) return "ring-2 ring-yellow-400/70";
+    if (ratio <= 0.8) return "ring-2 ring-orange-400/70";
     return "ring-2 ring-red-500/70";
   };
 
@@ -233,8 +252,8 @@ export default function HomeView() {
             {/* Calendar days */}
             <div className="grid grid-cols-7 gap-1">
               {generateCalendarDays().map((day, idx) => {
-                const count = day ? eventsByDay[day] || 0 : 0;
-                const ringClass = getDayRingClass(count, maxDayCount);
+                const ratio = day ? occupancyByDay[day] || 0 : 0;
+                const ringClass = getDayRingClass(ratio);
                 const isSelected =
                   day &&
                   selectedDate ===
