@@ -53,6 +53,7 @@ export default function ScheduleTable({
   const [saving, setSaving] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SelectedEvent | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
+  const [sessionPosition, setSessionPosition] = useState<{ x: number; y: number } | null>(null);
 
   const formatTime = (value?: Date | null) => {
     if (!value) return "--:--";
@@ -213,7 +214,12 @@ export default function ScheduleTable({
     setDraft(DEFAULT_DRAFT);
   };
 
-  const handleEventClick = (event: CalEvent) => {
+  const handleEventClick = (event: CalEvent, clientX?: number, clientY?: number) => {
+    if (typeof clientX === "number" && typeof clientY === "number") {
+      setSessionPosition({ x: clientX, y: clientY });
+    } else {
+      setSessionPosition(null);
+    }
     const status = (event.extendedProps?.status ?? event.status ?? "new") as string;
     setSelectedSession({
       id: String(event.id),
@@ -278,13 +284,27 @@ export default function ScheduleTable({
     <>
       <div className="relative">
         {selectedSession && (
-          <div className="absolute right-4 top-4 z-20 w-80">
+          <div
+            className="z-20 w-80"
+            style={
+              sessionPosition && typeof window !== "undefined"
+                ? {
+                    position: "fixed",
+                    left: Math.min(sessionPosition.x + 12, window.innerWidth - 340),
+                    top: Math.min(sessionPosition.y + 12, window.innerHeight - 280),
+                  }
+                : { position: "absolute", right: 16, top: 16 }
+            }
+          >
             <SessionModal
               session={selectedSession}
               arenaLabel={getArenaLabel(selectedSession.arenaId)}
               timeRange={formatTimeRange(selectedSession.start, selectedSession.end)}
               durationLabel={formatDurationLabel(selectedSession)}
-              onClear={() => setSelectedSession(null)}
+              onClear={() => {
+                setSelectedSession(null);
+                setSessionPosition(null);
+              }}
               onCancel={() => handleUpdateStatus("cancelled")}
               onDelete={canDelete ? handleDeleteSession : undefined}
               busy={sessionBusy}
@@ -341,7 +361,7 @@ export default function ScheduleTable({
                                   borderColor: meta.border,
                                   color: meta.text,
                                 }}
-                                onClick={() => handleEventClick(event)}
+                                onClick={(evt) => handleEventClick(event, evt.clientX, evt.clientY)}
                               >
                                 <div className="flex items-center gap-2 font-semibold">
                                   <span

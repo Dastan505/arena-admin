@@ -11,11 +11,17 @@ export default function HomeView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewMode = searchParams?.get("view") || "schedule";
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const [resources, setResources] = useState<ArenaResource[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [selectedArenaId, setSelectedArenaId] = useState("all");
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    formatDate(new Date())
   );
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [arenasLoading, setArenasLoading] = useState(true);
@@ -74,13 +80,6 @@ export default function HomeView() {
       role.includes("управля")
     );
   })();
-
-  const formatDate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
 
   const buildBookingsUrl = (startDate: Date, endDate: Date, arenaId: string) => {
     const base = `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;

@@ -85,6 +85,7 @@ export default function ScheduleView() {
   const [saving, setSaving] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SelectedEvent | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
+  const [sessionPosition, setSessionPosition] = useState<{ x: number; y: number } | null>(null);
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -326,8 +327,16 @@ export default function ScheduleView() {
       date?: string | null;
       startTime?: string | null;
       duration?: number | string | null;
+      clientId?: string | null;
     };
+    clientX?: number;
+    clientY?: number;
   }) => {
+    if (typeof payload.clientX === "number" && typeof payload.clientY === "number") {
+      setSessionPosition({ x: payload.clientX, y: payload.clientY });
+    } else {
+      setSessionPosition(null);
+    }
     setSelectedSession({
       id: payload.id,
       title: payload.title,
@@ -483,19 +492,33 @@ export default function ScheduleView() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden relative">
-              {selectedSession && (
-                <div className="absolute right-4 top-4 z-20 w-80">
-                  <SessionModal
-                    session={selectedSession}
-                    arenaLabel={getArenaLabel(selectedSession.arenaId)}
-                    timeRange={formatTimeRange(selectedSession.start, selectedSession.end)}
-                    durationLabel={formatDurationLabel(selectedSession)}
-                    onClear={() => setSelectedSession(null)}
-                    onConfirm={() => handleUpdateStatus("confirmed")}
-                    onCancel={() => handleUpdateStatus("cancelled")}
-                    onDelete={canDelete ? handleDeleteSession : undefined}
-                    busy={sessionBusy}
+          <div className="flex-1 overflow-hidden relative">
+            {selectedSession && (
+              <div
+                className="z-20 w-80"
+                style={
+                  sessionPosition && typeof window !== "undefined"
+                    ? {
+                        position: "fixed",
+                        left: Math.min(sessionPosition.x + 12, window.innerWidth - 340),
+                        top: Math.min(sessionPosition.y + 12, window.innerHeight - 280),
+                      }
+                    : { position: "absolute", right: 16, top: 16 }
+                }
+              >
+                <SessionModal
+                  session={selectedSession}
+                  arenaLabel={getArenaLabel(selectedSession.arenaId)}
+                  timeRange={formatTimeRange(selectedSession.start, selectedSession.end)}
+                  durationLabel={formatDurationLabel(selectedSession)}
+                  onClear={() => {
+                    setSelectedSession(null);
+                    setSessionPosition(null);
+                  }}
+                  onConfirm={() => handleUpdateStatus("confirmed")}
+                  onCancel={() => handleUpdateStatus("cancelled")}
+                  onDelete={canDelete ? handleDeleteSession : undefined}
+                  busy={sessionBusy}
                   />
                 </div>
               )}

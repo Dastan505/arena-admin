@@ -33,6 +33,8 @@ type TimelineViewProps = {
     end: Date | null;
     resourceId: string | null;
     extendedProps: CalEventExtended;
+    clientX?: number;
+    clientY?: number;
   }) => void;
 };
 
@@ -132,6 +134,8 @@ export default function TimelineView({
       eventClick={(info) => {
         const resourcesList = info.event.getResources?.() ?? [];
         const arenaId = resourcesList.length ? String(resourcesList[0].id) : null;
+        const clientX = typeof info.jsEvent?.clientX === "number" ? info.jsEvent.clientX : undefined;
+        const clientY = typeof info.jsEvent?.clientY === "number" ? info.jsEvent.clientY : undefined;
         deferTask(() => {
           onEventClick({
             id: String(info.event.id),
@@ -140,6 +144,8 @@ export default function TimelineView({
             end: info.event.end ?? null,
             resourceId: arenaId,
             extendedProps: info.event.extendedProps as CalEventExtended,
+            clientX,
+            clientY,
           });
         });
       }}
