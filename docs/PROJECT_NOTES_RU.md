@@ -90,6 +90,40 @@ sudo systemctl reload nginx
 sudo tail -n 50 /var/log/nginx/error.log
 ```
 
+## 6) Бэкапы базы (Postgres в Docker)
+Скрипт: `scripts/backup-postgres.sh`
+
+### Один раз вручную
+```bash
+cd /root/arena-admin
+bash scripts/backup-postgres.sh
+```
+
+### Автоматически по cron (каждую ночь в 03:15)
+```bash
+sudo crontab -e
+```
+Добавить строку:
+```
+15 3 * * * /bin/bash /root/arena-admin/scripts/backup-postgres.sh >> /var/log/pg_backup.log 2>&1
+```
+
+### Восстановление из бэкапа
+```bash
+gunzip -c /root/backups/postgres/directus_YYYY-MM-DD_HH-MM-SS.sql.gz | \
+  docker exec -i directus-postgres psql -U directus -d directus
+```
+
+### Параметры (если нужны другие)
+Можно переопределять переменные:
+```
+BACKUP_DIR=/root/backups/postgres
+DB_CONTAINER=directus-postgres
+DB_USER=directus
+DB_NAME=directus
+RETENTION_DAYS=14
+```
+
 ## 6) Оптимизация (безопасные шаги)
 - На сервере **никогда** не запускать `pnpm dev`.
 - Добавить в `.env.local`:
@@ -104,3 +138,12 @@ sudo tail -n 50 /var/log/nginx/error.log
 - Тип БД (Postgres/MySQL), где хостится, как делать бэкапы.
 - Политика хранения Directus токена.
 - Авто‑деплой или ручной деплой (сейчас — ручной).
+
+## 8) Соглашения работы (на будущее)
+- Если нужно добавить строку/настройку — давать команду в одну строку (append).
+  - Linux пример: `echo "строка" >> файл`
+  - PowerShell пример: `Add-Content -Path файл -Value "строка"`
+- Для каждого изменения, если нужно отправлять в Git, указывать локальные команды:
+  - `git add ...`
+  - `git commit -m "..."`
+  - `git push`

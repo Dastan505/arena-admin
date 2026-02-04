@@ -6,4 +6,4 @@
 - В `/schedule` подключены модалки создания/просмотра брони, загрузка игр.
 - Добавлены страницы-заглушки настроек: `/settings/arenas`, `/settings/payments`, `/settings/system`.
 - Настроен systemd‑сервис `arena-admin` и proxy Nginx для `admin.arena-api.ru`.
-
+- Добавлен скрипт бэкапа Postgres и инструкция в `docs/PROJECT_NOTES_RU.md`.
