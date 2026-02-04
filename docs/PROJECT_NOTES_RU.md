@@ -182,3 +182,19 @@ RETENTION_DAYS=14
 - Administrator
 - api-access
 - scheduler-read
+
+## 10) Ключевые страницы админки
+### Пользовательские страницы (Next.js)
+- `/` — основной дашборд/табличное расписание.
+- `/schedule` — расписание по ресурсам (таймлайн FullCalendar).
+- `/settings` — панель настроек.
+- `/settings/games` — управление играми.
+- `/settings/arenas` — (заглушка) настройки арен.
+- `/settings/payments` — (заглушка) платежи.
+- `/settings/system` — (заглушка) системные настройки.
+
+### API маршруты
+- `GET /api/arenas`
+- `GET/POST /api/bookings`
+- `PATCH/DELETE /api/bookings/:id`
+- `GET/POST/PATCH/DELETE /api/games`
