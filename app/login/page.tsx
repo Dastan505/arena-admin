@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+ï»¿import { Suspense } from "react";
 import LoginClient from "./login-client";
 
 export default function LoginPage() {
@@ -6,7 +6,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300">
-          Çàãðóçêà...
+          Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ°...
         </div>
       }
     >

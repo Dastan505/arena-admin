@@ -1,4 +1,4 @@
-"use client";
+п»ї"use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -23,7 +23,7 @@ export default function LoginClient() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data?.error || "Ошибка входа");
+        setError(data?.error || "РћС€РёР±РєР° РІС…РѕРґР°");
         return;
       }
       const from = searchParams?.get("from") || "/";
@@ -31,7 +31,7 @@ export default function LoginClient() {
       router.replace(nextPath);
     } catch (err) {
       console.error("Login error:", err);
-      setError("Ошибка входа");
+      setError("РћС€РёР±РєР° РІС…РѕРґР°");
     } finally {
       setLoading(false);
     }
@@ -43,8 +43,8 @@ export default function LoginClient() {
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl"
       >
-        <h1 className="text-2xl font-bold text-white mb-1">Вход</h1>
-        <p className="text-sm text-slate-400 mb-6">Введите логин Directus</p>
+        <h1 className="text-2xl font-bold text-white mb-1">Р’С…РѕРґ</h1>
+        <p className="text-sm text-slate-400 mb-6">Р’РІРµРґРёС‚Рµ Р»РѕРіРёРЅ Directus</p>
 
         <label className="block text-sm text-slate-300 mb-2">
           Email
@@ -57,7 +57,7 @@ export default function LoginClient() {
           />
         </label>
         <label className="block text-sm text-slate-300 mb-4">
-          Пароль
+          РџР°СЂРѕР»СЊ
           <input
             type="password"
             className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-white"
@@ -78,7 +78,7 @@ export default function LoginClient() {
           disabled={loading}
           className="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
         >
-          {loading ? "Входим..." : "Войти"}
+          {loading ? "Р’С…РѕРґРёРј..." : "Р’РѕР№С‚Рё"}
         </button>
       </form>
     </div>
