@@ -16,3 +16,4 @@
 - Зафиксировано: `api-access` имеет CRUD на bookings и избыточные права на `directus_*`.
 - Исправлено: `api-access` ограничен до user‑коллекций, системные отключены.
 - Настроен cron для ежедневных бэкапов Postgres (03:15).
+- Добавлены базовые настройки оптимизации (standalone в next.config, telemetry off в .env.example).

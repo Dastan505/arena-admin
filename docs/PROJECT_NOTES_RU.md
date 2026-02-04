@@ -125,6 +125,31 @@ DB_NAME=directus
 RETENTION_DAYS=14
 ```
 
+## 7) Оптимизация (рекомендуемый минимум)
+### 7.1 Отключить телеметрию Next.js
+В `.env.local` на сервере:
+```
+NEXT_TELEMETRY_DISABLED=1
+```
+
+### 7.2 Standalone‑сборка (уменьшает размер)
+В `next.config.ts` включён:
+```
+output: "standalone"
+```
+> Если захотим реально запускать standalone, нужно менять systemd на:
+```
+node /root/arena-admin/.next/standalone/server.js
+```
+и копировать `.next/static` и `public` в `.next/standalone`.
+
+### 7.3 Очистка dev‑зависимостей после сборки (опционально)
+На сервере после `pnpm build`:
+```
+pnpm prune --prod
+```
+Это уменьшит размер `node_modules`.
+
 ## 6) Оптимизация (безопасные шаги)
 - На сервере **никогда** не запускать `pnpm dev`.
 - Добавить в `.env.local`:
