@@ -91,13 +91,14 @@ export default function ScheduleTable({
     });
   };
 
-  const handleAddClick = (arenaId: string, time: string) => {
+  const handleAddClick = (arenaId: string, time: string, preferOpen = false) => {
     setSelectedSlot({ arenaId, time });
     setDraft({
       ...DEFAULT_DRAFT,
       open: true,
       arenaId,
       startTime: time,
+      mode: preferOpen ? "open" : DEFAULT_DRAFT.mode,
     });
     setModalOpen(true);
   };
@@ -140,6 +141,22 @@ export default function ScheduleTable({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        let message = "Ошибка создания брони";
+        try {
+          const data = await res.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // ignore
+        }
+        if (res.status === 409) {
+          alert("Конфликт времени. Выберите другой слот или используйте режим открытой записи.");
+        } else {
+          alert(message);
+        }
+        return;
+      }
 
       if (res.ok) {
         setModalOpen(false);
@@ -234,6 +251,12 @@ export default function ScheduleTable({
                               </div>
                             );
                           })}
+                          <button
+                            onClick={() => handleAddClick(arena.id, timeSlot, true)}
+                            className="w-full text-center text-slate-400 dark:text-slate-500 text-xs py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors font-semibold hover:text-blue-600 dark:hover:text-blue-400"
+                          >
+                            + Добавить ещё
+                          </button>
                         </div>
                       ) : (
                         <button

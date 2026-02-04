@@ -136,12 +136,16 @@ async function checkTimeConflicts(payload: {
   date: string;
   start_time: string;
   durationMinutes: number;
+  mode?: string | null;
 }) {
+  const newMode = String(payload.mode ?? "private").toLowerCase();
+  if (newMode === "open") return [];
+
   const params = new URLSearchParams();
   params.set(`filter[${FIELD_ARENA}][_eq]`, String(payload.arena));
   params.set(`filter[${FIELD_DATE}][_eq]`, payload.date);
   const fields = encodeURIComponent(
-    [FIELD_ID, FIELD_START_TIME, FIELD_DURATION].filter(Boolean).join(",")
+    [FIELD_ID, FIELD_START_TIME, FIELD_DURATION, FIELD_MODE].filter(Boolean).join(",")
   );
   const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${params.toString()}`;
   const data = await directusFetch(url);
@@ -165,7 +169,8 @@ async function checkTimeConflicts(payload: {
     const existingEnd = new Date(
       existingStart.getTime() + existingDurationMinutes * 60 * 1000
     );
-    return newStart < existingEnd && newEnd > existingStart;
+    const overlaps = newStart < existingEnd && newEnd > existingStart;
+    return overlaps;
   });
 }
 
@@ -289,6 +294,7 @@ export async function POST(req: Request) {
       date,
       start_time,
       durationMinutes,
+      mode: body?.mode,
     });
     if (conflicts.length > 0) {
       return NextResponse.json(

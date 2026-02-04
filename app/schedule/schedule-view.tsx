@@ -255,7 +255,19 @@ export default function ScheduleView() {
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to create booking (${res.status})`);
+        let message = "Ошибка создания брони";
+        try {
+          const data = await res.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // ignore
+        }
+        if (res.status === 409) {
+          alert("Конфликт времени. Выберите другой слот или используйте режим открытой записи.");
+        } else {
+          alert(message);
+        }
+        return;
       }
 
       handleCloseModal();
