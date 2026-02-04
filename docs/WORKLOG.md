@@ -8,3 +8,4 @@
 - Настроен systemd‑сервис `arena-admin` и proxy Nginx для `admin.arena-api.ru`.
 - Добавлен скрипт бэкапа Postgres и инструкция в `docs/PROJECT_NOTES_RU.md`.
 - Добавлен чеклист безопасности Directus в `docs/PROJECT_NOTES_RU.md`.
+- Зафиксированы коллекции Directus, роли и политики доступа.

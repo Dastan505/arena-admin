@@ -164,3 +164,21 @@ RETENTION_DAYS=14
 - Список ролей (название + назначение).
 - Какие коллекции доступны каждой роли.
 - Кто владелец/ответственный за токен.
+
+### 9.4 Текущее состояние (по скриншотам)
+**Коллекции:**
+- arenas (поля: name*, address, active)
+- bookings (поля: date*, start_time*, game*, client*, players*, status*, arena*, price_total, duration*, comment)
+- clients (поля: name, phone*, telegram, notes, visits_count, total_spent)
+- games (поля: name*, duration_min*, max_players, price_per_player, active)
+- payments (поля: booking*, amount*, method*, paid_at*)
+
+**Роли:**
+- Public
+- Administrator
+
+**Политики доступа:**
+- Public
+- Administrator
+- api-access
+- scheduler-read
