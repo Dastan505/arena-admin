@@ -6,6 +6,7 @@ import type { ArenaResource, CalEvent } from "@/lib/types";
 import ScheduleTable from "@/components/schedule-table";
 import SettingsDashboard from "@/components/settings-dashboard";
 import { Loader, ChevronLeft, ChevronRight } from "lucide-react";
+import UserBadge from "@/components/user-badge";
 
 export default function HomeView() {
   const router = useRouter();
@@ -321,6 +322,10 @@ export default function HomeView() {
             Настройки
           </button>
 
+        </div>
+
+        <div className="p-4 border-t border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
+          <UserBadge />
         </div>
       </div>
 

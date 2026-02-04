@@ -6,6 +6,7 @@ import NewSessionModal from "@/components/new-session-modal";
 import SessionModal from "@/components/session-modal";
 import SettingsDashboard from "@/components/settings-dashboard";
 import TimelineView from "@/components/timeline-view";
+import UserBadge from "@/components/user-badge";
 import type FullCalendar from "@fullcalendar/react";
 import type { ArenaResource, CalEvent, GameOption, NewSessionDraft, SelectedEvent } from "@/lib/types";
 
@@ -466,6 +467,9 @@ export default function ScheduleView() {
           >
             ⚙️ Settings
           </button>
+          <div className="mt-3">
+            <UserBadge />
+          </div>
         </div>
       </div>
 
