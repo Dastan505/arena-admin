@@ -13,28 +13,57 @@ export default function HomeView() {
   const viewMode = searchParams?.get("view") || "schedule";
   const [resources, setResources] = useState<ArenaResource[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [selectedArenaId, setSelectedArenaId] = useState("all");
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isLoading, setIsLoading] = useState(true);
+  const [arenasLoading, setArenasLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const openSettings = () => router.push("/?view=settings");
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadArenas = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-
-        // Load arenas
+        setArenasLoading(true);
         const arenasRes = await fetch("/api/arenas");
         if (!arenasRes.ok) throw new Error("Failed to load arenas");
         const arenas = await arenasRes.json();
-        setResources(arenas);
+        setResources(Array.isArray(arenas) ? arenas : []);
+      } catch (err) {
+        console.error("Failed to load arenas:", err);
+        setResources([]);
+      } finally {
+        setArenasLoading(false);
+      }
+    };
 
-        // Load bookings with date range
+    loadArenas();
+  }, []);
+
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const buildBookingsUrl = (startDate: Date, endDate: Date, arenaId: string) => {
+    const base = `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+    if (arenaId && arenaId !== "all") {
+      return `${base}&arenaIds=${encodeURIComponent(arenaId)}`;
+    }
+    return base;
+  };
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setEventsLoading(true);
+        setError(null);
+
         const today = new Date();
         const startDate = new Date(today);
         startDate.setHours(0, 0, 0, 0);
@@ -42,15 +71,8 @@ export default function HomeView() {
         endDate.setDate(endDate.getDate() + 30);
         endDate.setHours(23, 59, 59, 999);
 
-        const formatDate = (d: Date) => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          return `${y}-${m}-${day}`;
-        };
-
         const bookingsRes = await fetch(
-          `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`
+          buildBookingsUrl(startDate, endDate, selectedArenaId)
         );
         if (!bookingsRes.ok) throw new Error("Failed to load bookings");
         const bookings = await bookingsRes.json();
@@ -59,14 +81,14 @@ export default function HomeView() {
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
-        console.error("Failed to load data:", err);
+        console.error("Failed to load bookings:", err);
       } finally {
-        setIsLoading(false);
+        setEventsLoading(false);
       }
     };
 
-    loadData();
-  }, []);
+    loadEvents();
+  }, [selectedArenaId]);
 
   // Mini Calendar Helper Functions
   const getDaysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -98,15 +120,8 @@ export default function HomeView() {
       endDate.setDate(endDate.getDate() + 30);
       endDate.setHours(23, 59, 59, 999);
 
-      const formatDate = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
-      };
-
       const bookingsRes = await fetch(
-        `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`
+        buildBookingsUrl(startDate, endDate, selectedArenaId)
       );
       if (!bookingsRes.ok) throw new Error("Failed to load bookings");
       const bookings = await bookingsRes.json();
@@ -116,6 +131,11 @@ export default function HomeView() {
       console.error("Failed to refresh events:", err);
     }
   };
+
+  const filteredResources =
+    selectedArenaId === "all"
+      ? resources
+      : resources.filter((arena) => arena.id === selectedArenaId);
 
   const generateCalendarDays = () => {
     const daysInMonth = getDaysInMonth(currentMonth);
@@ -140,6 +160,23 @@ export default function HomeView() {
         <div className="p-5 border-b border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Arena Admin</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Управление</p>
+          <div className="mt-4">
+            <label className="block text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+              Филиал / Арена
+            </label>
+            <select
+              value={selectedArenaId}
+              onChange={(event) => setSelectedArenaId(event.target.value)}
+              className="w-full rounded-lg border border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            >
+              <option value="all">Все филиалы</option>
+              {resources.map((arena) => (
+                <option key={arena.id} value={arena.id}>
+                  {arena.name || arena.title}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Mini Calendar */}
@@ -198,38 +235,6 @@ export default function HomeView() {
             Настройки
           </button>
 
-          {/* Arenas Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
-                Арены
-              </h3>
-              <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full">
-                {resources.length}
-              </span>
-            </div>
-            
-            {isLoading ? (
-              <div className="flex items-center justify-center py-6">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-              </div>
-            ) : resources.length > 0 ? (
-              <div className="space-y-2">
-                {resources.map((arena) => (
-                  <div
-                    key={arena.id}
-                    className="p-3 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-800/50 hover:from-blue-50 hover:to-blue-50/50 dark:hover:from-blue-900/30 dark:hover:to-blue-900/20 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 transition-all cursor-default border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
-                  >
-                    {arena.name || arena.title}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
-                Арены недоступны
-              </p>
-            )}
-          </div>
         </div>
       </div>
 
@@ -251,11 +256,11 @@ export default function HomeView() {
                   })}
                 </h2>
                 <p className="text-slate-600 dark:text-slate-400">
-                  {resources.length} арен • {events.filter((e) => e.start?.startsWith(selectedDate)).length} бронирован
+                  {filteredResources.length} арен • {events.filter((e) => e.start?.startsWith(selectedDate)).length} бронирован
                 </p>
               </div>
 
-              {isLoading ? (
+              {eventsLoading ? (
                 <div className="flex flex-col items-center justify-center min-h-96 gap-4">
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur opacity-75 animate-pulse"></div>
@@ -268,7 +273,7 @@ export default function HomeView() {
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-auto">
                   <ScheduleTable
                     selectedDate={selectedDate}
-                    resources={resources}
+                    resources={filteredResources}
                     events={events}
                     onRefreshBookings={refreshEvents}
                   />
