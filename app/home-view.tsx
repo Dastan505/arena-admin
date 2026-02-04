@@ -18,9 +18,10 @@ export default function HomeView() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+  const STORAGE_KEY = "arenaAdmin.selectedArenaId";
   const [resources, setResources] = useState<ArenaResource[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
-  const [selectedArenaId, setSelectedArenaId] = useState("all");
+  const [selectedArenaId, setSelectedArenaId] = useState("");
   const [selectedDate, setSelectedDate] = useState(
     formatDate(new Date())
   );
@@ -50,6 +51,31 @@ export default function HomeView() {
 
     loadArenas();
   }, []);
+
+  useEffect(() => {
+    if (arenasLoading) return;
+    if (!resources.length) return;
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY);
+    } catch {
+      stored = null;
+    }
+    const exists = stored && resources.some((arena) => arena.id === stored);
+    const nextId = exists ? stored! : resources[0].id;
+    if (nextId && nextId !== selectedArenaId) {
+      setSelectedArenaId(nextId);
+    }
+  }, [arenasLoading, resources, selectedArenaId]);
+
+  useEffect(() => {
+    if (!selectedArenaId) return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, selectedArenaId);
+    } catch {
+      // ignore storage errors
+    }
+  }, [selectedArenaId]);
 
   useEffect(() => {
     let active = true;
@@ -84,7 +110,7 @@ export default function HomeView() {
 
   const buildBookingsUrl = (startDate: Date, endDate: Date, arenaId: string) => {
     const base = `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
-    if (arenaId && arenaId !== "all") {
+    if (arenaId) {
       return `${base}&arenaIds=${encodeURIComponent(arenaId)}`;
     }
     return base;
@@ -92,6 +118,10 @@ export default function HomeView() {
 
   useEffect(() => {
     const loadEvents = async () => {
+      if (!selectedArenaId) {
+        setEventsLoading(false);
+        return;
+      }
       try {
         setEventsLoading(true);
         setError(null);
@@ -145,6 +175,7 @@ export default function HomeView() {
 
   const refreshEvents = async () => {
     try {
+      if (!selectedArenaId) return;
       const today = new Date();
       const startDate = new Date(today);
       startDate.setHours(0, 0, 0, 0);
@@ -165,9 +196,9 @@ export default function HomeView() {
   };
 
   const filteredResources =
-    selectedArenaId === "all"
-      ? resources
-      : resources.filter((arena) => arena.id === selectedArenaId);
+    selectedArenaId
+      ? resources.filter((arena) => arena.id === selectedArenaId)
+      : resources;
 
   const { occupancyByDay } = useMemo(() => {
     const usedSlots: Record<number, number> = {};
@@ -241,12 +272,13 @@ export default function HomeView() {
             <select
               value={selectedArenaId}
               onChange={(event) => setSelectedArenaId(event.target.value)}
-              disabled={arenasLoading}
+              disabled={arenasLoading || resources.length === 0}
               className="w-full rounded-lg border border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
             >
-              <option value="all">
-                {arenasLoading ? "Загрузка..." : "Все филиалы"}
-              </option>
+              {arenasLoading && <option value="">Загрузка...</option>}
+              {!arenasLoading && resources.length === 0 && (
+                <option value="">Филиалов нет</option>
+              )}
               {!arenasLoading &&
                 resources.map((arena) => (
                   <option key={arena.id} value={arena.id}>
