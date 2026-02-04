@@ -66,6 +66,15 @@ pnpm build
 sudo systemctl restart arena-admin
 ```
 
+## 4.1) Авто‑деплой (GitHub Actions)
+- Workflow: `.github/workflows/deploy.yml`
+- Нужные secrets в GitHub:
+  - `VPS_HOST` (например: `194.87.104.180`)
+  - `VPS_USER` (например: `root`)
+  - `VPS_PORT` (например: `22`)
+  - `VPS_SSH_KEY` (приватный SSH‑ключ)
+- После настройки secrets каждый `git push` в `main` делает деплой.
+
 ## 5) Полезные проверки
 ### Сервер
 ```bash
