@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 
 export async function GET() {
-  const token = cookies().get("da_access_token")?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("da_access_token")?.value;
   if (!token) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
