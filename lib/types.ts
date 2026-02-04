@@ -1,4 +1,4 @@
-export type ArenaResource = { id: string; title: string; name?: string };
+export type ArenaResource = { id: string; title: string; name?: string; address?: string | null };
 
 export type GameOption = { id: string; name: string; category?: string | null };
 

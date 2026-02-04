@@ -1,19 +1,30 @@
 import { NextResponse } from "next/server";
-import { directusFetch, directusRequest } from "@/lib/directus";
+import { cookies } from "next/headers";
+import { directusFetchWithToken, directusRequestWithToken } from "@/lib/directus";
 
 const BOOKINGS_COLLECTION = "bookings";
+
+async function getUserToken() {
+  const store = await cookies();
+  return store.get("da_access_token")?.value ?? null;
+}
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = await getUserToken();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
     }
     const body = await req.json();
-    const updated = await directusFetch(
+    const updated = await directusFetchWithToken(
+      token,
       `/items/${BOOKINGS_COLLECTION}/${id}`,
       {
         method: "PATCH",
@@ -38,11 +49,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const token = await getUserToken();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: "Missing booking id" }, { status: 400 });
     }
-    const res = await directusRequest(`/items/${BOOKINGS_COLLECTION}/${id}`, {
+    const res = await directusRequestWithToken(token, `/items/${BOOKINGS_COLLECTION}/${id}`, {
       method: "DELETE",
     });
     if (!res.ok) {

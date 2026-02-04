@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
-import { directusFetch } from "@/lib/directus";
+import { cookies } from "next/headers";
+import { directusFetchWithToken } from "@/lib/directus";
 
 const BOOKINGS_COLLECTION = "bookings";
 
@@ -22,6 +23,7 @@ const FIELD_PRICE_TOTAL = "price_total";
 const CLIENTS_COLLECTION = "clients";
 const FIELD_CLIENT_PHONE = "phone";
 const FIELD_CLIENT_NAME_VALUE = "name";
+const FIELD_CLIENT_ARENA = "arena";
 
 const DEFAULT_STATUS_VALUE = "new";
 
@@ -69,7 +71,7 @@ function normalizePhone(value: any) {
   return str;
 }
 
-async function findClientIdByPhone(phone: string) {
+async function findClientIdByPhone(token: string, phone: string) {
   const raw = normalizePhone(phone);
   if (!raw) return null;
   const normalized = raw.replace(/\D/g, "");
@@ -83,18 +85,23 @@ async function findClientIdByPhone(phone: string) {
   params.set("limit", "1");
   const fields = encodeURIComponent("id");
   const url = `/items/${CLIENTS_COLLECTION}?fields=${fields}&${params.toString()}`;
-  const data = await directusFetch(url);
+  const data = await directusFetchWithToken(token, url);
   const idValue = data?.data?.[0]?.id;
   return idValue != null ? String(idValue) : null;
 }
 
-async function createClient(payload: Record<string, any>) {
-  const created = await directusFetch(`/items/${CLIENTS_COLLECTION}`, {
+async function createClient(token: string, payload: Record<string, any>) {
+  const created = await directusFetchWithToken(token, `/items/${CLIENTS_COLLECTION}`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
   const idValue = created?.data?.id ?? created?.id;
   return idValue != null ? String(idValue) : null;
+}
+
+async function getUserToken() {
+  const store = await cookies();
+  return store.get("da_access_token")?.value ?? null;
 }
 
 function toDateOnly(value: any): string | null {
@@ -170,13 +177,16 @@ function parseNumber(value: any): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-async function checkTimeConflicts(payload: {
+async function checkTimeConflicts(
+  token: string,
+  payload: {
   arena: any;
   date: string;
   start_time: string;
   durationMinutes: number;
   mode?: string | null;
-}) {
+  }
+) {
   const newMode = String(payload.mode ?? "private").toLowerCase();
   if (newMode === "open") return [];
 
@@ -187,7 +197,7 @@ async function checkTimeConflicts(payload: {
     [FIELD_ID, FIELD_START_TIME, FIELD_DURATION, FIELD_MODE].filter(Boolean).join(",")
   );
   const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${params.toString()}`;
-  const data = await directusFetch(url);
+  const data = await directusFetchWithToken(token, url);
   const existing = data?.data ?? [];
 
   const newStart = buildLocalDateTime(payload.date, payload.start_time);
@@ -215,6 +225,10 @@ async function checkTimeConflicts(payload: {
 
 export async function GET(req: Request) {
   try {
+    const token = await getUserToken();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const { searchParams } = new URL(req.url);
     const start = searchParams.get("start");
     const end = searchParams.get("end");
@@ -243,7 +257,7 @@ export async function GET(req: Request) {
 
     const fields = encodeURIComponent(BOOKING_FIELDS.join(","));
     const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${filters.toString()}`;
-    const data = await directusFetch(url);
+    const data = await directusFetchWithToken(token, url);
 
     const events = (data?.data ?? [])
       .map((booking: any) => {
@@ -314,6 +328,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const token = await getUserToken();
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
     const arena = body?.arena;
     const date = body?.date;
@@ -330,7 +348,7 @@ export async function POST(req: Request) {
       parseDurationMinutes(body?.duration) ??
       DEFAULT_DURATION_MINUTES;
 
-    const conflicts = await checkTimeConflicts({
+    const conflicts = await checkTimeConflicts(token, {
       arena,
       date,
       start_time,
@@ -372,21 +390,22 @@ export async function POST(req: Request) {
     if (clientValue == null) {
       const phone = normalizePhone(body?.phone);
       if (phone) {
-        const foundId = await findClientIdByPhone(phone);
+        const foundId = await findClientIdByPhone(token, phone);
         if (foundId) clientValue = foundId as any;
         if (clientValue == null) {
           const clientPayload: Record<string, any> = {
             [FIELD_CLIENT_PHONE]: phone,
+            [FIELD_CLIENT_ARENA]: arena,
           };
           if (body?.clientName) clientPayload[FIELD_CLIENT_NAME_VALUE] = body.clientName;
-          const createdId = await createClient(clientPayload);
+          const createdId = await createClient(token, clientPayload);
           if (createdId) clientValue = createdId as any;
         }
       }
     }
     if (clientValue != null) payload[FIELD_CLIENT] = clientValue;
 
-    const created = await directusFetch(`/items/${BOOKINGS_COLLECTION}`, {
+    const created = await directusFetchWithToken(token, `/items/${BOOKINGS_COLLECTION}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -405,3 +424,4 @@ export async function POST(req: Request) {
     return NextResponse.json(payload, { status: 500 });
   }
 }
+
