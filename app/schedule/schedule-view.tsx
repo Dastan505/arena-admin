@@ -86,6 +86,7 @@ export default function ScheduleView() {
   const [selectedSession, setSelectedSession] = useState<SelectedEvent | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [range, setRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return formatDate(today);
@@ -94,6 +95,37 @@ export default function ScheduleView() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        const roleName = data?.user?.role?.name ?? null;
+        if (active) setUserRole(roleName);
+      } catch (err) {
+        console.error("Failed to load user:", err);
+      }
+    };
+    loadUser();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canDelete = (() => {
+    if (!userRole) return false;
+    const role = userRole.toLowerCase();
+    return (
+      role.includes("admin") ||
+      role.includes("director") ||
+      role.includes("owner") ||
+      role.includes("директор") ||
+      role.includes("управля")
+    );
+  })();
 
   useEffect(() => {
     let active = true;
@@ -247,6 +279,8 @@ export default function ScheduleView() {
       if (playersValue) payload.players = playersValue;
       if (draft.price.trim() !== "") payload.price = draft.price;
       if (mergedComment) payload.comment = mergedComment;
+      if (draft.clientName.trim()) payload.clientName = draft.clientName.trim();
+      if (draft.phone.trim()) payload.phone = draft.phone.trim();
 
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -303,6 +337,7 @@ export default function ScheduleView() {
       arenaId: payload.resourceId,
       gameName: payload.extendedProps?.gameName ?? null,
       clientName: payload.extendedProps?.clientName ?? null,
+      clientId: payload.extendedProps?.clientId ?? null,
       duration: payload.extendedProps?.duration ?? null,
       dateOnly: payload.extendedProps?.date ?? undefined,
       startTime: payload.extendedProps?.startTime ?? undefined,
@@ -459,7 +494,7 @@ export default function ScheduleView() {
                     onClear={() => setSelectedSession(null)}
                     onConfirm={() => handleUpdateStatus("confirmed")}
                     onCancel={() => handleUpdateStatus("cancelled")}
-                    onDelete={handleDeleteSession}
+                    onDelete={canDelete ? handleDeleteSession : undefined}
                     busy={sessionBusy}
                   />
                 </div>

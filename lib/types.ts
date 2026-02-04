@@ -5,6 +5,7 @@ export type GameOption = { id: string; name: string; category?: string | null };
 export type CalEventExtended = {
   status?: string;
   clientName?: string | null;
+  clientId?: string | null;
   gameName?: string | null;
   date?: string | null;
   startTime?: string | null;
@@ -48,6 +49,7 @@ export type SelectedEvent = {
   arenaId: string | null;
   gameName: string | null;
   clientName: string | null;
+  clientId?: string | null;
   duration: number | string | null;
   dateOnly?: string;
   startTime?: string;

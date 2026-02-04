@@ -20,6 +20,7 @@ export default function HomeView() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [arenasLoading, setArenasLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const openSettings = () => router.push("/?view=settings");
@@ -42,6 +43,37 @@ export default function HomeView() {
 
     loadArenas();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        const roleName = data?.user?.role?.name ?? null;
+        if (active) setUserRole(roleName);
+      } catch (err) {
+        console.error("Failed to load user:", err);
+      }
+    };
+    loadUser();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const canDelete = (() => {
+    if (!userRole) return false;
+    const role = userRole.toLowerCase();
+    return (
+      role.includes("admin") ||
+      role.includes("director") ||
+      role.includes("owner") ||
+      role.includes("директор") ||
+      role.includes("управля")
+    );
+  })();
 
   const formatDate = (d: Date) => {
     const y = d.getFullYear();
@@ -337,6 +369,7 @@ export default function HomeView() {
                     resources={filteredResources}
                     events={events}
                     onRefreshBookings={refreshEvents}
+                    canDelete={canDelete}
                   />
                 </div>
               )}

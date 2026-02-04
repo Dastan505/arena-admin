@@ -73,10 +73,13 @@ export default function SessionModal({
           Арена: <b>{arenaLabel}</b>
         </div>
         <div>
-          Игра: <b>{session.gameName ?? "-"}</b>
+          Сеанс: <b>{session.gameName ?? "-"}</b>
         </div>
         <div>
           Клиент: <b>{session.clientName ?? "-"}</b>
+        </div>
+        <div>
+          Синхронизация: <b>{session.clientId ? "Да" : "Нет"}</b>
         </div>
         <div>
           Длительность: <b>{durationLabel}</b>

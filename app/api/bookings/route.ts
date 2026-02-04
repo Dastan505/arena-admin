@@ -19,6 +19,9 @@ const FIELD_MODE = "mode";
 const FIELD_PLAYERS = "players";
 const FIELD_COMMENT = "comment";
 const FIELD_PRICE_TOTAL = "price_total";
+const CLIENTS_COLLECTION = "clients";
+const FIELD_CLIENT_PHONE = "phone";
+const FIELD_CLIENT_NAME_VALUE = "name";
 
 const DEFAULT_STATUS_VALUE = "new";
 
@@ -38,6 +41,7 @@ const BOOKING_FIELDS = [
   FIELD_DURATION,
   FIELD_STATUS,
   FIELD_ARENA,
+  FIELD_CLIENT,
   FIELD_GAME_NAME,
   FIELD_CLIENT_NAME,
 ].filter(Boolean);
@@ -56,6 +60,41 @@ function normalizeArenaId(value: any) {
     return null;
   }
   return value;
+}
+
+function normalizePhone(value: any) {
+  if (!value) return "";
+  const str = String(value).trim();
+  if (!str) return "";
+  return str;
+}
+
+async function findClientIdByPhone(phone: string) {
+  const raw = normalizePhone(phone);
+  if (!raw) return null;
+  const normalized = raw.replace(/\D/g, "");
+  const params = new URLSearchParams();
+  if (normalized && normalized !== raw) {
+    params.set(`filter[_or][0][${FIELD_CLIENT_PHONE}][_eq]`, raw);
+    params.set(`filter[_or][1][${FIELD_CLIENT_PHONE}][_eq]`, normalized);
+  } else {
+    params.set(`filter[${FIELD_CLIENT_PHONE}][_eq]`, raw);
+  }
+  params.set("limit", "1");
+  const fields = encodeURIComponent("id");
+  const url = `/items/${CLIENTS_COLLECTION}?fields=${fields}&${params.toString()}`;
+  const data = await directusFetch(url);
+  const idValue = data?.data?.[0]?.id;
+  return idValue != null ? String(idValue) : null;
+}
+
+async function createClient(payload: Record<string, any>) {
+  const created = await directusFetch(`/items/${CLIENTS_COLLECTION}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const idValue = created?.data?.id ?? created?.id;
+  return idValue != null ? String(idValue) : null;
 }
 
 function toDateOnly(value: any): string | null {
@@ -216,6 +255,7 @@ export async function GET(req: Request) {
         : null;
       const durationValue = getByPath(booking, FIELD_DURATION);
       const arenaValue = normalizeArenaId(getByPath(booking, FIELD_ARENA));
+      const clientValue = normalizeArenaId(getByPath(booking, FIELD_CLIENT));
       const clientName = getByPath(booking, FIELD_CLIENT_NAME);
       const gameName = getByPath(booking, FIELD_GAME_NAME);
       const statusValue = getByPath(booking, FIELD_STATUS);
@@ -243,6 +283,7 @@ export async function GET(req: Request) {
         extendedProps: {
           status: statusValue ?? null,
           clientName: clientName ?? null,
+          clientId: clientValue ? String(clientValue) : null,
           gameName: gameName ?? null,
           date: dateValue ?? null,
           startTime: startTimeValue ?? null,
@@ -327,7 +368,22 @@ export async function POST(req: Request) {
 
     const gameValue = parseNumber(body?.game);
     if (gameValue != null) payload[FIELD_GAME] = gameValue;
-    const clientValue = parseNumber(body?.client);
+    let clientValue: string | number | null = parseNumber(body?.client);
+    if (clientValue == null) {
+      const phone = normalizePhone(body?.phone);
+      if (phone) {
+        const foundId = await findClientIdByPhone(phone);
+        if (foundId) clientValue = foundId as any;
+        if (clientValue == null) {
+          const clientPayload: Record<string, any> = {
+            [FIELD_CLIENT_PHONE]: phone,
+          };
+          if (body?.clientName) clientPayload[FIELD_CLIENT_NAME_VALUE] = body.clientName;
+          const createdId = await createClient(clientPayload);
+          if (createdId) clientValue = createdId as any;
+        }
+      }
+    }
     if (clientValue != null) payload[FIELD_CLIENT] = clientValue;
 
     const created = await directusFetch(`/items/${BOOKINGS_COLLECTION}`, {

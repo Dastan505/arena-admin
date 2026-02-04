@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ArenaResource, CalEvent, GameOption, NewSessionDraft } from "@/lib/types";
+import type { ArenaResource, CalEvent, GameOption, NewSessionDraft, SelectedEvent } from "@/lib/types";
 import { getStatusMeta } from "@/lib/types";
 import NewSessionModal from "./new-session-modal";
+import SessionModal from "./session-modal";
 
 type ScheduleTableProps = {
   selectedDate: string;
   resources: ArenaResource[];
   events: CalEvent[];
   onRefreshBookings?: () => Promise<void>;
+  canDelete?: boolean;
 };
 
 export default function ScheduleTable({ 
@@ -17,6 +19,7 @@ export default function ScheduleTable({
   resources,
   events,
   onRefreshBookings,
+  canDelete = false,
 }: ScheduleTableProps) {
   const [games, setGames] = useState<GameOption[]>([]);
   const [gamesLoading, setGamesLoading] = useState(false);
@@ -48,6 +51,34 @@ export default function ScheduleTable({
 
   const [draft, setDraft] = useState<NewSessionDraft>(DEFAULT_DRAFT);
   const [saving, setSaving] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<SelectedEvent | null>(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+
+  const formatTime = (value?: Date | null) => {
+    if (!value) return "--:--";
+    const hh = String(value.getHours()).padStart(2, "0");
+    const mm = String(value.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+
+  const formatTimeRange = (start?: Date | null, end?: Date | null) => {
+    if (!start && !end) return "--:--";
+    if (start && !end) return `${formatTime(start)} - --:--`;
+    if (!start && end) return `--:-- - ${formatTime(end)}`;
+    return `${formatTime(start)} - ${formatTime(end)}`;
+  };
+
+  const formatDurationLabel = (session: SelectedEvent | null) => {
+    if (!session) return "--";
+    if (session.start && session.end) {
+      const minutes = Math.max(0, Math.round((session.end.getTime() - session.start.getTime()) / 60000));
+      if (minutes) return `${minutes} мин`;
+    }
+    if (session.duration != null) {
+      return typeof session.duration === "number" ? `${session.duration} мин` : String(session.duration);
+    }
+    return "--";
+  };
 
   useEffect(() => {
     let active = true;
@@ -135,6 +166,8 @@ export default function ScheduleTable({
       if (playersValue) payload.players = playersValue;
       if (draft.price.trim() !== "") payload.price = draft.price;
       if (mergedComment) payload.comment = mergedComment;
+      if (draft.clientName.trim()) payload.clientName = draft.clientName.trim();
+      if (draft.phone.trim()) payload.phone = draft.phone.trim();
 
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -180,14 +213,85 @@ export default function ScheduleTable({
     setDraft(DEFAULT_DRAFT);
   };
 
-  const getArenaLabel = () => {
-    const arena = resources.find((r) => r.id === selectedSlot?.arenaId);
+  const handleEventClick = (event: CalEvent) => {
+    const status = (event.extendedProps?.status ?? event.status ?? "new") as string;
+    setSelectedSession({
+      id: String(event.id),
+      title: event.title,
+      status,
+      start: event.start ? new Date(event.start) : null,
+      end: event.end ? new Date(event.end) : null,
+      arenaId: (event.resourceId ?? event.arenaId ?? null) as string | null,
+      gameName: event.extendedProps?.gameName ?? null,
+      clientName: event.extendedProps?.clientName ?? null,
+      clientId: event.extendedProps?.clientId ?? null,
+      duration: event.extendedProps?.duration ?? null,
+      dateOnly: event.extendedProps?.date ?? undefined,
+      startTime: event.extendedProps?.startTime ?? undefined,
+    });
+  };
+
+  const handleUpdateStatus = async (status: string) => {
+    if (!selectedSession) return;
+    setSessionBusy(true);
+    try {
+      const res = await fetch(`/api/bookings/${selectedSession.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`Failed to update status (${res.status})`);
+      setSelectedSession((prev) => (prev ? { ...prev, status } : prev));
+      if (onRefreshBookings) {
+        await onRefreshBookings();
+      }
+    } catch (err) {
+      console.error("Error updating booking:", err);
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!selectedSession) return;
+    setSessionBusy(true);
+    try {
+      const res = await fetch(`/api/bookings/${selectedSession.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete booking (${res.status})`);
+      setSelectedSession(null);
+      if (onRefreshBookings) {
+        await onRefreshBookings();
+      }
+    } catch (err) {
+      console.error("Error deleting booking:", err);
+    } finally {
+      setSessionBusy(false);
+    }
+  };
+
+  const getArenaLabel = (arenaId?: string | null) => {
+    const arena = resources.find((r) => r.id === arenaId);
     return arena?.name || arena?.title || "";
   };
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="relative">
+        {selectedSession && (
+          <div className="absolute right-4 top-4 z-20 w-80">
+            <SessionModal
+              session={selectedSession}
+              arenaLabel={getArenaLabel(selectedSession.arenaId)}
+              timeRange={formatTimeRange(selectedSession.start, selectedSession.end)}
+              durationLabel={formatDurationLabel(selectedSession)}
+              onClear={() => setSelectedSession(null)}
+              onCancel={() => handleUpdateStatus("cancelled")}
+              onDelete={canDelete ? handleDeleteSession : undefined}
+              busy={sessionBusy}
+            />
+          </div>
+        )}
+        <div className="overflow-x-auto">
         <table className="w-full border-collapse bg-white dark:bg-slate-900">
           <thead>
             <tr className="border-b-2 border-slate-300 dark:border-slate-700">
@@ -231,12 +335,13 @@ export default function ScheduleTable({
                             return (
                               <div
                                 key={event.id}
-                                className="p-2 rounded text-xs border"
+                                className="p-2 rounded text-xs border cursor-pointer hover:brightness-110"
                                 style={{
                                   background: meta.bg,
                                   borderColor: meta.border,
                                   color: meta.text,
                                 }}
+                                onClick={() => handleEventClick(event)}
                               >
                                 <div className="flex items-center gap-2 font-semibold">
                                   <span
@@ -248,6 +353,11 @@ export default function ScheduleTable({
                                 <div className="text-xs opacity-75">
                                   {event.start?.split("T")[1]?.substring(0, 5)} - {event.end?.split("T")[1]?.substring(0, 5)}
                                 </div>
+                                {event.extendedProps?.clientId && (
+                                  <div className="text-[10px] uppercase tracking-wide opacity-80 mt-1">
+                                    Синхронизирован
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -273,13 +383,14 @@ export default function ScheduleTable({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Booking Modal */}
       {selectedSlot && (
         <NewSessionModal
           open={modalOpen}
-          arenaLabel={getArenaLabel()}
+          arenaLabel={getArenaLabel(selectedSlot.arenaId)}
           dateLabel={selectedDate}
           timeLabel={selectedSlot.time}
           timeInputValue={selectedSlot.time}
