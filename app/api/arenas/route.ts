@@ -37,11 +37,21 @@ export async function GET() {
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD].join(",");
-    const data = await directusFetchWithToken(
-      token,
-      `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`
-    );
+    let data: any = null;
+    try {
+      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD].join(",");
+      data = await directusFetchWithToken(
+        token,
+        `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`
+      );
+    } catch (err) {
+      console.warn("arenas GET fallback to id,name:", err);
+      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD].join(",");
+      data = await directusFetchWithToken(
+        token,
+        `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`
+      );
+    }
 
     const arenas = (data?.data ?? []).map((arena: any) => ({
       id: String(arena?.[ARENA_ID_FIELD]),
