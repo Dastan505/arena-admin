@@ -1,9 +1,5 @@
 "use client";
 
-import "@fullcalendar/core/index.css";
-import "@fullcalendar/timegrid/index.css";
-import "@fullcalendar/resource-timegrid/index.css";
-
 import "../styles/fullcalendar/core.css";
 import "../styles/fullcalendar/timegrid.css";
 import "../styles/fullcalendar/resource-timegrid.css";
