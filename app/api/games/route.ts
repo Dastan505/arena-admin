@@ -5,8 +5,18 @@ const COLLECTION = "games";
 
 export async function GET() {
   try {
-    const data = await directusFetch(`/items/${COLLECTION}?fields=id,name&sort=name`);
-    const items = (data?.data ?? []).map((it: any) => ({ id: String(it.id), name: it.name }));
+    let data: any = null;
+    try {
+      data = await directusFetch(`/items/${COLLECTION}?fields=id,name,category&sort=name`);
+    } catch (err) {
+      console.warn("/api/games GET fallback to id,name:", err);
+      data = await directusFetch(`/items/${COLLECTION}?fields=id,name&sort=name`);
+    }
+    const items = (data?.data ?? []).map((it: any) => ({
+      id: String(it.id),
+      name: it.name,
+      category: it.category ?? null,
+    }));
     return NextResponse.json(items);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -21,7 +31,8 @@ export async function POST(request: Request) {
     if (!body?.name) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
-    const payload = { name: body.name };
+    const payload: Record<string, any> = { name: body.name };
+    if (body?.category) payload.category = body.category;
     const res = await directusFetch(`/items/${COLLECTION}`, {
       method: "POST",
       body: JSON.stringify(payload),
@@ -40,9 +51,11 @@ export async function PATCH(request: Request) {
     if (!body?.id || !body?.name) {
       return NextResponse.json({ error: "Missing id or name" }, { status: 400 });
     }
+    const payload: Record<string, any> = { name: body.name };
+    if (body?.category !== undefined) payload.category = body.category;
     const res = await directusFetch(`/items/${COLLECTION}/${body.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ name: body.name }),
+      body: JSON.stringify(payload),
     });
     return NextResponse.json(res);
   } catch (err) {

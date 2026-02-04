@@ -1,6 +1,6 @@
 export type ArenaResource = { id: string; title: string; name?: string };
 
-export type GameOption = { id: string; name: string };
+export type GameOption = { id: string; name: string; category?: string | null };
 
 export type CalEventExtended = {
   status?: string;

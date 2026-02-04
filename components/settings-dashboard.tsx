@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default function SettingsDashboard() {
   const cards = [
-    { href: "/settings/games", title: "Игры", desc: "Управление доступными играми" },
+    { href: "/settings/games", title: "Сеансы", desc: "Управление сеансами и категориями" },
     { href: "/settings/arenas", title: "Арены", desc: "Настройки и ресурсы арены" },
     { href: "/settings/payments", title: "Платежи", desc: "Интеграции и настройки платежей" },
     { href: "/settings/system", title: "Система", desc: "Уведомления и вебхуки" },

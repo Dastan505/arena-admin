@@ -73,6 +73,36 @@ export default function NewSessionModal({
     WebkitAppearance: "none" as const,
   };
 
+  const categoryOrder = [
+    "Квест игры",
+    "Детские игры",
+    "Командные игры",
+    "Мероприятия",
+    "Дополнительно",
+  ];
+  const categorizedGames = (() => {
+    if (!games.length) return [];
+    const buckets = new Map<string, GameOption[]>();
+    games.forEach((game) => {
+      const key = (game.category ?? "").trim() || "Без категории";
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(game);
+    });
+    const sorted = Array.from(buckets.entries()).map(([category, list]) => ({
+      category,
+      games: list.sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+    const byOrder = (a: string, b: string) => {
+      const ai = categoryOrder.indexOf(a);
+      const bi = categoryOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    };
+    return sorted.sort((a, b) => byOrder(a.category, b.category));
+  })();
+
   return (
     <div
       style={{
@@ -149,7 +179,7 @@ export default function NewSessionModal({
 
         <div style={{ display: "grid", gap: 12 }}>
           <label style={labelStyle}>
-            Игра
+            Сеанс
             <select
               value={draft.gameId ?? ""}
               onChange={(event) => {
@@ -164,15 +194,19 @@ export default function NewSessionModal({
             >
               <option value="">
                 {gamesLoading
-                  ? "Загрузка игр…"
+                  ? "Загрузка сеансов…"
                   : games.length === 0
-                    ? "Нет доступных игр"
-                    : "Выберите игру"}
+                    ? "Нет доступных сеансов"
+                    : "Выберите сеанс"}
               </option>
-              {games.map((game) => (
-                <option key={game.id} value={String(game.id)}>
-                  {game.name}
-                </option>
+              {categorizedGames.map((group) => (
+                <optgroup key={group.category} label={group.category}>
+                  {group.games.map((game) => (
+                    <option key={game.id} value={String(game.id)}>
+                      {game.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
