@@ -107,6 +107,7 @@ sudo crontab -e
 ```
 15 3 * * * /bin/bash /root/arena-admin/scripts/backup-postgres.sh >> /var/log/pg_backup.log 2>&1
 ```
+Сейчас cron установлен с этим расписанием.
 
 ### Восстановление из бэкапа
 ```bash
