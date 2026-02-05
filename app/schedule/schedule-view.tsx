@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import NewSessionModal from "@/components/new-session-modal";
 import SessionModal from "@/components/session-modal";
 import SettingsDashboard from "@/components/settings-dashboard";
-import TimelineView from "@/components/timeline-view";
+import ScheduleTable from "@/components/schedule-table";
 import UserBadge from "@/components/user-badge";
 import type FullCalendar from "@fullcalendar/react";
 import type { ArenaResource, CalEvent, GameOption, NewSessionDraft, SelectedEvent } from "@/lib/types";
@@ -534,16 +534,9 @@ export default function ScheduleView() {
                   </div>
                 </div>
               )}
-              <TimelineView
-                calendarRef={calendarRef}
-                resources={resources}
-                events={events}
-                selectedDate={selectedDate}
-                viewName="resourceTimeGridDay"
-                onDatesSet={handleDatesSet}
-                onSelectSlot={handleSelectSlot}
-                onEventClick={handleEventClick}
-              />
+              <div className="text-center p-8 text-slate-500">
+                Timeline view temporarily disabled. Use home page for new view.
+              </div>
             </div>
 
             {selectedSlot && (
