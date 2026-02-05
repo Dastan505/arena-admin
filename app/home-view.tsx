@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { ArenaResource, CalEvent } from "@/lib/types";
 import ScheduleTable from "@/components/schedule-table";
 import SettingsDashboard from "@/components/settings-dashboard";
-import { Loader, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import UserBadge from "@/components/user-badge";
 
 // Utility functions - defined outside component to avoid recreating on every render
@@ -40,6 +40,7 @@ export default function HomeView() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const openSettings = () => router.push("/?view=settings");
 
@@ -284,11 +285,45 @@ export default function HomeView() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700"
+        aria-label="Toggle menu"
+      >
+        {sidebarOpen ? (
+          <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+        ) : (
+          <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+        )}
+      </button>
+
+      {/* Backdrop for mobile */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Left Sidebar */}
-      <div className="w-72 border-r border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 overflow-y-auto flex flex-col">
+      <div
+        className={`fixed md:static inset-y-0 left-0 z-40 w-72 border-r border-slate-200/50 dark:border-slate-800/50 bg-gradient-to-b from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 overflow-y-auto flex flex-col transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
         {/* Header */}
         <div className="p-5 border-b border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Arena Admin</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Arena Admin</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            </button>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Управление</p>
           <div className="mt-4">
             <label className="block text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
@@ -387,9 +422,9 @@ export default function HomeView() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-0 ml-0">
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 pt-16 md:pt-6">
           {viewMode === "settings" ? (
             <SettingsDashboard />
           ) : (
