@@ -80,9 +80,15 @@ curl -X POST "https://directus.arena-api.ru/items/bookings" `
 **Причина**: API не может получить доступ к Directus
 **Решение**: Проверьте DIRECTUS_SERVICE_TOKEN в .env.local или перезапустите dev сервер
 
-### "Ошибка создания брони" (403)
+### "Ошибка создания брони" (403) - РЕШЕНО
 **Причина**: Нет прав на создание в bookings или clients
-**Решение**: Настройте permissions в Settings → Access Control
+**Решение**: 
+1. Settings → **Access Policies** (не Access Control!)
+2. Выберите политику **branch-access**
+3. Для коллекций `bookings` и `clients` включите: **Create**, **Read**, **Update**
+4. Убедитесь что в Field Permissions включены все поля
+
+**Важно:** В новых версиях Directus права настраиваются через **Access Policies**, а не через Access Control → Roles.
 
 ### Цена не считается (0 ₸)
 **Причина**: Поле price_per_player пустое или не возвращается API

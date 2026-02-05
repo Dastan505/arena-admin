@@ -104,36 +104,25 @@ fields:
 
 ---
 
-## Что нужно сделать в Directus
+## ✅ Решение найдено (2026-02-05)
 
-### 1. Добавить поле mode в bookings (если нет)
-```javascript
-// Миграция
-{
-  field: "mode",
-  type: "string",
-  meta: {
-    interface: "select-dropdown",
-    options: {
-      choices: [
-        { text: "Приватная", value: "private" },
-        { text: "Открытая", value: "open" }
-      ]
-    }
-  }
-}
-```
+Проблема была в **Access Policies** (не Access Control/Roles).
 
-### 2. Настроить права для branch-admin
-Settings → Access Control → branch-admin:
-- bookings: Create, Read, Update (все поля)
-- clients: Create, Read (все поля)
-- games: Read (все поля)
+### Настройка:
+**Settings → Access Policies → branch-access:**
 
-### 3. Проверить поле arena у users
-Settings → Data Model → directus_users:
-- Должно быть поле `arena` (Many-to-One → arenas)
-- У пользователей branch-admin должно быть заполнено
+| Collection | Create | Read | Update | Delete |
+|------------|--------|------|--------|--------|
+| bookings   | ✅     | ✅   | ✅     | -      |
+| clients    | ✅     | ✅   | ✅     | -      |
+| games      | -      | ✅   | -      | -      |
+
+**Важно:** В политике должны быть включены **все поля** (Field Permissions) для чтения/создания.
+
+### Проверка:
+- ✅ Бронирование создаётся без ошибок 403
+- ✅ Авто-расчет цены работает (price_per_player × players)
+- ✅ Клиенты создаются автоматически по телефону
 
 ---
 
