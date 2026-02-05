@@ -178,16 +178,18 @@ export default function ScheduleTable({
 
       if (!res.ok) {
         let message = "Ошибка создания брони";
+        let details = "";
         try {
           const data = await res.json();
           if (data?.error) message = data.error;
+          if (data?.details) details = data.details;
         } catch {
           // ignore
         }
         if (res.status === 409) {
           alert("Конфликт времени. Выберите другой слот или используйте режим открытой записи.");
         } else {
-          alert(message);
+          alert(message + (details ? `\n\n${details}` : "") + ` (код: ${res.status})`);
         }
         return;
       }

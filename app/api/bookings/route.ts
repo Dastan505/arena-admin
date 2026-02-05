@@ -98,8 +98,10 @@ async function findClientIdByPhone(token: string, phone: string): Promise<string
     const idValue = data?.data?.[0]?.id;
     return idValue != null ? String(idValue) : null;
   } catch (error) {
+    console.log("[findClientIdByPhone] User token error:", error);
     // Fallback to service token on 403
     if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
+      console.log("[findClientIdByPhone] Using service token fallback");
       const data = await directusFetch<ClientResponse>(url);
       const idValue = data?.data?.[0]?.id;
       return idValue != null ? String(idValue) : null;
@@ -111,20 +113,25 @@ async function findClientIdByPhone(token: string, phone: string): Promise<string
 async function createClient(token: string, payload: Record<string, unknown>): Promise<string | null> {
   type ClientCreateResponse = { data?: { id?: string | number }; id?: string | number };
   try {
+    console.log("[createClient] Creating client:", JSON.stringify(payload));
     const created = await directusFetchWithToken<ClientCreateResponse>(token, `/items/${CLIENTS_COLLECTION}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
     const idValue = created?.data?.id ?? created?.id;
+    console.log("[createClient] Created with user token, id:", idValue);
     return idValue != null ? String(idValue) : null;
   } catch (error) {
+    console.log("[createClient] User token error:", error);
     // Fallback to service token on 403
     if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
+      console.log("[createClient] Using service token fallback");
       const created = await directusFetch<ClientCreateResponse>(`/items/${CLIENTS_COLLECTION}`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
       const idValue = created?.data?.id ?? created?.id;
+      console.log("[createClient] Created with service token, id:", idValue);
       return idValue != null ? String(idValue) : null;
     }
     throw error;
@@ -459,6 +466,8 @@ export async function POST(req: Request) {
     }
     if (clientValue != null) payload[FIELD_CLIENT] = clientValue;
 
+    console.log("[bookings POST] Creating booking with payload:", JSON.stringify(payload, null, 2));
+    
     // Try with user token first, fallback to service token on 403
     let created;
     try {
@@ -466,14 +475,22 @@ export async function POST(req: Request) {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      console.log("[bookings POST] Created with user token");
     } catch (error) {
+      console.log("[bookings POST] User token error:", error);
       // If 403 and service token available, retry with service token
       if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
-        console.log("User token 403, falling back to service token for booking creation");
-        created = await directusFetch(`/items/${BOOKINGS_COLLECTION}`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+        console.log("[bookings POST] Falling back to service token for booking creation");
+        try {
+          created = await directusFetch(`/items/${BOOKINGS_COLLECTION}`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          console.log("[bookings POST] Created with service token");
+        } catch (serviceError) {
+          console.error("[bookings POST] Service token also failed:", serviceError);
+          throw serviceError;
+        }
       } else {
         throw error;
       }
@@ -483,13 +500,12 @@ export async function POST(req: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown server error";
-    console.error("bookings route error:", message, error);
+    console.error("[bookings POST] Error:", message, error);
     const payload: Record<string, string> = {
       error: "Ошибка создания брони",
     };
-    if (process.env.NODE_ENV !== "production") {
-      payload.details = message;
-    }
+    // Always show details for debugging
+    payload.details = message;
     return NextResponse.json(payload, { status: 500 });
   }
 }
