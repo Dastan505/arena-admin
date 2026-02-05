@@ -111,6 +111,18 @@ export default function ScheduleTable({
     timeSlots.push(timeStr);
   }
 
+  // Helper: round time to nearest hour slot (e.g., 15:05 -> 15:00)
+  const roundToHourSlot = (timeStr: string): string => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    // If minutes >= 30, round up to next hour, else round down
+    if (minutes >= 30) {
+      const nextHour = hours + 1;
+      if (nextHour >= 24) return "23:59";
+      return `${String(nextHour).padStart(2, '0')}:00`;
+    }
+    return `${String(hours).padStart(2, '0')}:00`;
+  };
+
   // Get events for selected date and arena
   const getEventsForSlot = (arenaId: string, startTime: string) => {
     return events.filter((event) => {
@@ -119,7 +131,16 @@ export default function ScheduleTable({
       if (eventDate !== selectedDate) return false;
 
       const eventTime = event.start.split("T")[1]?.substring(0, 5);
-      return eventTime === startTime && (event.resourceId === arenaId || event.arenaId === arenaId);
+      // Round event time to nearest hour slot for matching
+      const roundedEventTime = roundToHourSlot(eventTime || "00:00");
+      const matches = roundedEventTime === startTime && (event.resourceId === arenaId || event.arenaId === arenaId);
+      
+      // Debug logging
+      if (eventDate === selectedDate && matches) {
+        console.log(`[getEventsForSlot] Match! Event: ${event.title}, raw time: ${eventTime}, rounded: ${roundedEventTime}, slot: ${startTime}`);
+      }
+      
+      return matches;
     });
   };
 

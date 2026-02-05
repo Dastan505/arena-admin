@@ -165,6 +165,7 @@ export default function HomeView() {
         if (!bookingsRes.ok) throw new Error("Failed to load bookings");
         const bookings = await bookingsRes.json();
         const bookingsArray = Array.isArray(bookings) ? bookings : (bookings?.bookings ?? []);
+        console.log("[home-view] Loaded bookings:", bookingsArray.length, bookingsArray);
         setEvents(bookingsArray);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
