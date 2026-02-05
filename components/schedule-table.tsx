@@ -152,7 +152,7 @@ export default function ScheduleTable({
       if (draft.phone?.trim()) commentParts.push(`Телефон: ${draft.phone.trim()}`);
       const mergedComment = commentParts.join(" | ");
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         date: selectedDate,
         start_time: selectedSlot.time,
         arena: selectedSlot.arenaId,
@@ -336,7 +336,7 @@ export default function ScheduleTable({
                   idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50 dark:bg-slate-900/50"
                 }`}
               >
-                <td className="sticky left-0 z-9 bg-inherit p-3 font-semibold text-slate-700 dark:text-slate-300 text-sm w-32">
+                <td className="sticky left-0 z-10 bg-inherit p-3 font-semibold text-slate-700 dark:text-slate-300 text-sm w-32">
                   {timeSlot}
                 </td>
                 {resources.map((arena) => {

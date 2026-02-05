@@ -45,7 +45,7 @@ export default function ArenasAdmin() {
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setArenas(
-        list.map((item: any) => ({
+        list.map((item: { id: string | number; name?: string; title?: string; address?: string | null }) => ({
           id: String(item.id),
           name: item.name ?? item.title ?? "",
           address: item.address ?? null,
@@ -62,6 +62,7 @@ export default function ArenasAdmin() {
   useEffect(() => {
     loadUser();
     loadArenas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAdd = async () => {

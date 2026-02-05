@@ -31,7 +31,14 @@ export async function POST(request: Request) {
     const refreshToken = data?.data?.refresh_token;
     const expires = Number(data?.data?.expires ?? 3600);
 
+    console.log("[login] Directus response:", { 
+      hasAccessToken: !!accessToken, 
+      hasRefreshToken: !!refreshToken,
+      expires 
+    });
+
     if (!accessToken) {
+      console.error("[login] No access_token in Directus response:", data);
       return NextResponse.json({ error: "Не удалось получить токен" }, { status: 500 });
     }
 
@@ -43,6 +50,7 @@ export async function POST(request: Request) {
       path: "/",
       maxAge: expires,
     });
+    console.log("[login] Cookie set:", { name: "da_access_token", maxAge: expires, secure: process.env.NODE_ENV === "production" });
     if (refreshToken) {
       response.cookies.set("da_refresh_token", refreshToken, {
         httpOnly: true,

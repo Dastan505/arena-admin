@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 type Game = { id: string; name: string; category?: string | null };
+
+type ApiError = {
+  error?: string;
+  details?: string;
+};
 
 export default function GamesAdmin() {
   const [games, setGames] = useState<Game[]>([]);
@@ -10,23 +15,31 @@ export default function GamesAdmin() {
   const [category, setCategory] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/games");
+      if (!res.ok) {
+        const errData: ApiError = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to load: ${res.status}`);
+      }
       const data = await res.json();
       setGames(data || []);
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load games";
+      setError(message);
       console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const categoryOptions = useMemo(() => {
     const values = games
@@ -36,18 +49,29 @@ export default function GamesAdmin() {
   }, [games]);
 
   const handleAdd = async () => {
-    if (!name.trim()) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("Введите название");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      await fetch("/api/games", {
+      const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), category: category.trim() || null }),
+        body: JSON.stringify({ name: trimmedName, category: category.trim() || null }),
       });
+      if (!res.ok) {
+        const errData: ApiError = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to create: ${res.status}`);
+      }
       setName("");
       setCategory("");
       await load();
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to create";
+      setError(message);
       console.error(e);
     } finally {
       setLoading(false);
@@ -57,16 +81,27 @@ export default function GamesAdmin() {
   const handleSave = async (id: string) => {
     const g = games.find((x) => x.id === id);
     if (!g) return;
+    if (!g.name.trim()) {
+      setError("Название не может быть пустым");
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
-      await fetch("/api/games", {
+      const res = await fetch("/api/games", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, name: g.name, category: g.category ?? null }),
+        body: JSON.stringify({ id, name: g.name.trim(), category: g.category ?? null }),
       });
+      if (!res.ok) {
+        const errData: ApiError = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to update: ${res.status}`);
+      }
       setEditing(null);
       await load();
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to update";
+      setError(message);
       console.error(e);
     } finally {
       setLoading(false);
@@ -76,10 +111,17 @@ export default function GamesAdmin() {
   const handleDelete = async (id: string) => {
     if (!confirm("Удалить этот сеанс?")) return;
     setLoading(true);
+    setError(null);
     try {
-      await fetch(`/api/games?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(`/api/games?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errData: ApiError = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to delete: ${res.status}`);
+      }
       await load();
     } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to delete";
+      setError(message);
       console.error(e);
     } finally {
       setLoading(false);
@@ -88,6 +130,11 @@ export default function GamesAdmin() {
 
   return (
     <div className="p-6">
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+          {error}
+        </div>
+      )}
       <div className="mb-4 grid gap-3 md:grid-cols-[2fr_1fr_auto] items-center">
         <input
           className="flex-1 rounded-md border px-3 py-2 bg-white/80 dark:bg-slate-800"

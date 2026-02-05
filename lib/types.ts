@@ -55,7 +55,7 @@ export type SelectedEvent = {
   startTime?: string;
   notes?: string;
   gameId?: string;
-  current?: any;
+  current?: unknown;
 };
 
 export type NewSessionDraft = {

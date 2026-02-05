@@ -259,3 +259,24 @@ pnpm prune --prod
 - `GET/POST /api/bookings`
 - `PATCH/DELETE /api/bookings/:id`
 - `GET/POST/PATCH/DELETE /api/games`
+
+## 11) Directus: что настроили и правили
+- **Поля/связи в Directus**:
+  - `directus_users.arena` (M2O → `arenas`) — у каждого админа свой филиал.
+  - `clients.arena` (M2O → `arenas`) — история клиентов по филиалам.
+  - `arenas.address` (Text) — адрес филиала.
+  - `games.category` (Text) — категории для списка сеансов.
+- **Роли/политики**:
+  - Создана роль **branch-admin** и политика **branch-access**.
+  - Права для branch-admin:
+    - `arenas`: только **read**, фильтр `id = $CURRENT_USER.arena`
+    - `bookings`: **create/read/update**, фильтр `arena = $CURRENT_USER.arena`
+    - `clients`: **create/read/update**, фильтр `arena = $CURRENT_USER.arena`
+    - `games`: **read** (без фильтра)
+  - Роль **Administrator** — полный доступ без ограничений.
+- **Авторизация**:
+  - Вход на сайт идёт через Directus (`/auth/login`).
+  - Токен пользователя хранится в cookie и используется в API, чтобы работали ограничения по ролям.
+- **Поведение в админке**:
+  - Админ филиала видит только свой филиал/записи.
+  - Директор видит все филиалы и все записи.

@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth";
 
 const DIRECTUS_URL = process.env.DIRECTUS_URL;
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("da_access_token")?.value;
+  const token = await getValidToken();
   if (!token) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }

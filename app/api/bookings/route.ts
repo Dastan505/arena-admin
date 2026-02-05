@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { directusFetchWithToken } from "@/lib/directus";
+import { getValidToken } from "@/lib/auth";
 
 const BOOKINGS_COLLECTION = "bookings";
 
@@ -48,30 +48,37 @@ const BOOKING_FIELDS = [
   FIELD_CLIENT_NAME,
 ].filter(Boolean);
 
-function getByPath(record: any, path: string) {
-  return path.split(".").reduce((acc, key) => {
+function getByPath(record: unknown, path: string): unknown {
+  return path.split(".").reduce((acc: unknown, key) => {
     if (acc == null) return undefined;
-    return acc[key];
-  }, record as any);
+    if (typeof acc === "object" && acc !== null) {
+      return (acc as Record<string, unknown>)[key];
+    }
+    return undefined;
+  }, record);
 }
 
-function normalizeArenaId(value: any) {
+function normalizeArenaId(value: unknown): string | number | null {
   if (value == null) return null;
   if (typeof value === "object") {
-    if ("id" in value) return (value as any).id;
+    const obj = value as Record<string, unknown>;
+    if ("id" in obj) {
+      const id = obj.id;
+      return typeof id === "string" || typeof id === "number" ? id : null;
+    }
     return null;
   }
-  return value;
+  return typeof value === "string" || typeof value === "number" ? value : null;
 }
 
-function normalizePhone(value: any) {
+function normalizePhone(value: unknown): string {
   if (!value) return "";
   const str = String(value).trim();
   if (!str) return "";
   return str;
 }
 
-async function findClientIdByPhone(token: string, phone: string) {
+async function findClientIdByPhone(token: string, phone: string): Promise<string | null> {
   const raw = normalizePhone(phone);
   if (!raw) return null;
   const normalized = raw.replace(/\D/g, "");
@@ -85,13 +92,15 @@ async function findClientIdByPhone(token: string, phone: string) {
   params.set("limit", "1");
   const fields = encodeURIComponent("id");
   const url = `/items/${CLIENTS_COLLECTION}?fields=${fields}&${params.toString()}`;
-  const data = await directusFetchWithToken(token, url);
+  type ClientResponse = { data?: Array<{ id?: string | number }> };
+  const data = await directusFetchWithToken<ClientResponse>(token, url);
   const idValue = data?.data?.[0]?.id;
   return idValue != null ? String(idValue) : null;
 }
 
-async function createClient(token: string, payload: Record<string, any>) {
-  const created = await directusFetchWithToken(token, `/items/${CLIENTS_COLLECTION}`, {
+async function createClient(token: string, payload: Record<string, unknown>): Promise<string | null> {
+  type ClientCreateResponse = { data?: { id?: string | number }; id?: string | number };
+  const created = await directusFetchWithToken<ClientCreateResponse>(token, `/items/${CLIENTS_COLLECTION}`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -99,18 +108,17 @@ async function createClient(token: string, payload: Record<string, any>) {
   return idValue != null ? String(idValue) : null;
 }
 
-async function getUserToken() {
-  const store = await cookies();
-  return store.get("da_access_token")?.value ?? null;
+async function getUserToken(): Promise<string | null> {
+  return getValidToken();
 }
 
-function toDateOnly(value: any): string | null {
+function toDateOnly(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") {
     const match = value.match(/^\d{4}-\d{2}-\d{2}/);
     if (match) return match[0];
   }
-  const date = new Date(value);
+  const date = new Date(value as string | number | Date);
   if (Number.isNaN(date.getTime())) return null;
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -118,7 +126,7 @@ function toDateOnly(value: any): string | null {
   return `${y}-${m}-${d}`;
 }
 
-function parseTimeParts(value: any) {
+function parseTimeParts(value: unknown): { hours: number; minutes: number; seconds: number } {
   if (typeof value !== "string" || value.trim() === "") {
     return { hours: 0, minutes: 0, seconds: 0 };
   }
@@ -129,7 +137,7 @@ function parseTimeParts(value: any) {
   return { hours, minutes, seconds };
 }
 
-function buildLocalDateTime(dateValue: any, timeValue: any): Date | null {
+function buildLocalDateTime(dateValue: unknown, timeValue: unknown): Date | null {
   const dateStr = toDateOnly(dateValue);
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split("-").map((part) => Number(part));
@@ -138,7 +146,7 @@ function buildLocalDateTime(dateValue: any, timeValue: any): Date | null {
   return new Date(year, month - 1, day, hours, minutes, seconds);
 }
 
-function parseDurationMinutes(value: any): number | null {
+function parseDurationMinutes(value: unknown): number | null {
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value)) {
     return DURATION_UNIT === "hours" ? value * 60 : value;
@@ -171,21 +179,23 @@ function formatLocalDateTime(date: Date): string {
   return `${y}-${m}-${d}T${hh}:${mm}:${ss}`;
 }
 
-function parseNumber(value: any): number | null {
+function parseNumber(value: unknown): number | null {
   if (value == null) return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }
 
-async function checkTimeConflicts(
-  token: string,
-  payload: {
-  arena: any;
+interface CheckConflictsPayload {
+  arena: string | number;
   date: string;
   start_time: string;
   durationMinutes: number;
   mode?: string | null;
-  }
+}
+
+async function checkTimeConflicts(
+  token: string,
+  payload: CheckConflictsPayload
 ) {
   const newMode = String(payload.mode ?? "private").toLowerCase();
   if (newMode === "open") return [];
@@ -197,7 +207,8 @@ async function checkTimeConflicts(
     [FIELD_ID, FIELD_START_TIME, FIELD_DURATION, FIELD_MODE].filter(Boolean).join(",")
   );
   const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${params.toString()}`;
-  const data = await directusFetchWithToken(token, url);
+  type BookingResponse = { data?: Array<Record<string, unknown>> };
+  const data = await directusFetchWithToken<BookingResponse>(token, url);
   const existing = data?.data ?? [];
 
   const newStart = buildLocalDateTime(payload.date, payload.start_time);
@@ -206,7 +217,7 @@ async function checkTimeConflicts(
     newStart.getTime() + payload.durationMinutes * 60 * 1000
   );
 
-  return existing.filter((booking: any) => {
+  return existing.filter((booking: Record<string, unknown>) => {
     const existingStart = buildLocalDateTime(
       booking?.[FIELD_DATE] ?? payload.date,
       booking?.[FIELD_START_TIME]
@@ -257,10 +268,28 @@ export async function GET(req: Request) {
 
     const fields = encodeURIComponent(BOOKING_FIELDS.join(","));
     const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${filters.toString()}`;
-    const data = await directusFetchWithToken(token, url);
+    
+    interface BookingData {
+      id?: string | number;
+      date?: string;
+      start_time?: string;
+      end_time?: string;
+      duration?: string | number;
+      arena?: unknown;
+      client?: unknown;
+      clientName?: string;
+      gameName?: string;
+      status?: string;
+    }
+    
+    interface BookingsResponse {
+      data?: BookingData[];
+    }
+    
+    const data = await directusFetchWithToken<BookingsResponse>(token, url);
 
     const events = (data?.data ?? [])
-      .map((booking: any) => {
+      .map((booking: BookingData) => {
       const idValue = getByPath(booking, FIELD_ID) ?? booking?.id;
       const dateValue = getByPath(booking, FIELD_DATE);
       const startTimeValue = getByPath(booking, FIELD_START_TIME);
@@ -268,11 +297,11 @@ export async function GET(req: Request) {
         ? getByPath(booking, FIELD_END_TIME)
         : null;
       const durationValue = getByPath(booking, FIELD_DURATION);
-      const arenaValue = normalizeArenaId(getByPath(booking, FIELD_ARENA));
-      const clientValue = normalizeArenaId(getByPath(booking, FIELD_CLIENT));
-      const clientName = getByPath(booking, FIELD_CLIENT_NAME);
-      const gameName = getByPath(booking, FIELD_GAME_NAME);
-      const statusValue = getByPath(booking, FIELD_STATUS);
+      const arenaValue = normalizeArenaId(getByPath(booking, FIELD_ARENA)) as string | number | null;
+      const clientValue = normalizeArenaId(getByPath(booking, FIELD_CLIENT)) as string | number | null;
+      const clientName = getByPath(booking, FIELD_CLIENT_NAME) as string | undefined;
+      const gameName = getByPath(booking, FIELD_GAME_NAME) as string | undefined;
+      const statusValue = getByPath(booking, FIELD_STATUS) as string | undefined;
 
       const startDateTime = buildLocalDateTime(dateValue, startTimeValue);
       let endDateTime = endTimeValue
@@ -362,44 +391,46 @@ export async function POST(req: Request) {
       );
     }
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       [FIELD_ARENA]: arena,
       [FIELD_DATE]: date,
       [FIELD_START_TIME]: start_time,
       [FIELD_DURATION]: toStorageDuration(durationMinutes),
-      [FIELD_STATUS]: body?.status ?? DEFAULT_STATUS_VALUE,
+      [FIELD_STATUS]: (body as Record<string, unknown>)?.status ?? DEFAULT_STATUS_VALUE,
     };
 
-    if (body?.mode) payload[FIELD_MODE] = body.mode;
+    const bodyRecord = body as Record<string, unknown>;
+    
+    if (bodyRecord?.mode) payload[FIELD_MODE] = bodyRecord.mode;
 
     const playersValue =
-      parseNumber(body?.players) ??
-      parseNumber(body?.playersCount) ??
-      parseNumber(body?.playersCurrent) ??
+      parseNumber(bodyRecord?.players) ??
+      parseNumber(bodyRecord?.playersCount) ??
+      parseNumber(bodyRecord?.playersCurrent) ??
       null;
     if (playersValue != null) payload[FIELD_PLAYERS] = playersValue;
 
-    const priceValue = parseNumber(body?.price);
+    const priceValue = parseNumber(bodyRecord?.price);
     if (priceValue != null) payload[FIELD_PRICE_TOTAL] = priceValue;
 
-    if (body?.comment) payload[FIELD_COMMENT] = body.comment;
+    if (bodyRecord?.comment) payload[FIELD_COMMENT] = bodyRecord.comment;
 
-    const gameValue = parseNumber(body?.game);
+    const gameValue = parseNumber(bodyRecord?.game);
     if (gameValue != null) payload[FIELD_GAME] = gameValue;
-    let clientValue: string | number | null = parseNumber(body?.client);
+    let clientValue: string | number | null = parseNumber(bodyRecord?.client);
     if (clientValue == null) {
-      const phone = normalizePhone(body?.phone);
+      const phone = normalizePhone(bodyRecord?.phone);
       if (phone) {
         const foundId = await findClientIdByPhone(token, phone);
-        if (foundId) clientValue = foundId as any;
+        if (foundId) clientValue = foundId;
         if (clientValue == null) {
-          const clientPayload: Record<string, any> = {
+          const clientPayload: Record<string, unknown> = {
             [FIELD_CLIENT_PHONE]: phone,
             [FIELD_CLIENT_ARENA]: arena,
           };
-          if (body?.clientName) clientPayload[FIELD_CLIENT_NAME_VALUE] = body.clientName;
+          if (bodyRecord?.clientName) clientPayload[FIELD_CLIENT_NAME_VALUE] = bodyRecord.clientName;
           const createdId = await createClient(token, clientPayload);
-          if (createdId) clientValue = createdId as any;
+          if (createdId) clientValue = createdId;
         }
       }
     }

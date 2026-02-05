@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { directusFetchWithToken, DIRECTUS_URL } from "@/lib/directus";
+import { getValidToken } from "@/lib/auth";
 
 const ARENAS_COLLECTION = "arenas";
 const ARENA_ID_FIELD = "id";
@@ -16,9 +16,9 @@ function canManage(roleName: string | null | undefined) {
   return ROLE_ALLOWLIST.some((needle) => role.includes(needle));
 }
 
-async function getUserToken() {
-  const store = await cookies();
-  return store.get("da_access_token")?.value ?? null;
+// Use getValidToken from lib/auth for automatic refresh
+async function getUserToken(): Promise<string | null> {
+  return getValidToken();
 }
 
 async function getRoleNameFromToken(token: string | null) {
@@ -31,46 +31,58 @@ async function getRoleNameFromToken(token: string | null) {
   return data?.data?.role?.name ?? null;
 }
 
+interface ArenaData {
+  id?: string | number;
+  name?: string;
+  title?: string;
+  address?: string | null;
+}
+
+interface ArenasResponse {
+  data?: ArenaData[];
+}
+
 export async function GET() {
   try {
     const token = await getUserToken();
     if (!token) {
+      console.error("[arenas GET] No user token in cookies");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    let data: any = null;
+    
+    console.log("[arenas GET] Token exists, DIRECTUS_URL:", DIRECTUS_URL ? "configured" : "MISSING");
+    let data: ArenasResponse | null = null;
     try {
       const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD].join(",");
-      data = await directusFetchWithToken(
-        token,
-        `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`
-      );
+      const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
+      console.log("[arenas GET] Fetching from Directus:", url);
+      data = await directusFetchWithToken<ArenasResponse>(token, url);
+      console.log("[arenas GET] Data received, count:", data?.data?.length ?? 0);
     } catch (err) {
-      console.warn("arenas GET fallback to id,name:", err);
+      console.warn("[arenas GET] Primary fetch failed, trying fallback:", err);
       const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD].join(",");
-      data = await directusFetchWithToken(
-        token,
-        `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`
-      );
+      const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
+      data = await directusFetchWithToken<ArenasResponse>(token, url);
     }
 
-    const arenas = (data?.data ?? []).map((arena: any) => ({
-      id: String(arena?.[ARENA_ID_FIELD]),
-      title: arena?.[ARENA_TITLE_FIELD] ?? `Arena ${arena?.[ARENA_ID_FIELD]}`,
-      name: arena?.[ARENA_TITLE_FIELD] ?? null,
-      address: arena?.[ARENA_ADDRESS_FIELD] ?? null,
+    const arenas = (data?.data ?? []).map((arena: ArenaData) => ({
+      id: String(arena?.[ARENA_ID_FIELD as keyof ArenaData]),
+      title: arena?.[ARENA_TITLE_FIELD as keyof ArenaData] ?? `Arena ${arena?.[ARENA_ID_FIELD as keyof ArenaData]}`,
+      name: arena?.[ARENA_TITLE_FIELD as keyof ArenaData] ?? null,
+      address: arena?.[ARENA_ADDRESS_FIELD as keyof ArenaData] ?? null,
     }));
 
     return NextResponse.json(arenas);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown server error";
-    console.error("arenas route error:", message, error);
+    const message = error instanceof Error ? error.message : "Unknown server error";
+    const stack = error instanceof Error ? error.stack : "";
+    console.error("[arenas GET] Error:", message);
+    console.error("[arenas GET] Stack:", stack);
+    
     const payload: Record<string, string> = {
       error: "Failed to load arenas. Check Directus settings.",
+      details: message,
     };
-    if (process.env.NODE_ENV !== "production") {
-      payload.details = message;
-    }
     return NextResponse.json(payload, { status: 500 });
   }
 }
@@ -90,12 +102,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const name = String(body?.name ?? "").trim();
-    const address = String(body?.address ?? "").trim();
+    const name = String((body as Record<string, unknown>)?.name ?? "").trim();
+    const address = String((body as Record<string, unknown>)?.address ?? "").trim();
     if (!name) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       [ARENA_TITLE_FIELD]: name,
     };
     if (address) payload[ARENA_ADDRESS_FIELD] = address;
@@ -127,14 +139,15 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const id = body?.id;
-    const name = String(body?.name ?? "").trim();
-    const address = String(body?.address ?? "").trim();
+    const bodyRecord = body as Record<string, unknown>;
+    const id = bodyRecord?.id;
+    const name = String(bodyRecord?.name ?? "").trim();
+    const address = String(bodyRecord?.address ?? "").trim();
     if (!id || !name) {
       return NextResponse.json({ error: "Missing id or name" }, { status: 400 });
     }
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       [ARENA_TITLE_FIELD]: name,
     };
     payload[ARENA_ADDRESS_FIELD] = address || null;

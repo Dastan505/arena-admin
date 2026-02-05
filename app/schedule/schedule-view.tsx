@@ -266,7 +266,7 @@ export default function ScheduleView() {
       if (draft.phone?.trim()) commentParts.push(`Телефон: ${draft.phone.trim()}`);
       const mergedComment = commentParts.join(" | ");
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         date: selectedSlot.date,
         start_time: selectedSlot.time,
         arena: selectedSlot.arenaId,

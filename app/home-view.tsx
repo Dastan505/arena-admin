@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ArenaResource, CalEvent } from "@/lib/types";
 import ScheduleTable from "@/components/schedule-table";
@@ -8,16 +8,26 @@ import SettingsDashboard from "@/components/settings-dashboard";
 import { Loader, ChevronLeft, ChevronRight } from "lucide-react";
 import UserBadge from "@/components/user-badge";
 
+// Utility functions - defined outside component to avoid recreating on every render
+const formatDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const buildBookingsUrl = (startDate: Date, endDate: Date, arenaId: string) => {
+  const base = `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+  if (arenaId) {
+    return `${base}&arenaIds=${encodeURIComponent(arenaId)}`;
+  }
+  return base;
+};
+
 export default function HomeView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewMode = searchParams?.get("view") || "schedule";
-  const formatDate = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
   const STORAGE_KEY = "arenaAdmin.selectedArenaId";
   const [resources, setResources] = useState<ArenaResource[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
@@ -37,12 +47,29 @@ export default function HomeView() {
     const loadArenas = async () => {
       try {
         setArenasLoading(true);
+        setError(null);
+        console.log("[home-view] Loading arenas...");
         const arenasRes = await fetch("/api/arenas");
-        if (!arenasRes.ok) throw new Error("Failed to load arenas");
+        console.log("[home-view] Arenas response status:", arenasRes.status);
+        
+        if (!arenasRes.ok) {
+          const errData = await arenasRes.json().catch(() => ({ error: "Unknown error" }));
+          console.error("[home-view] Arenas error:", errData);
+          if (arenasRes.status === 401) {
+            console.log("[home-view] Unauthorized, redirecting to login");
+            router.push("/login");
+            return;
+          }
+          throw new Error(errData.error || errData.details || `HTTP ${arenasRes.status}`);
+        }
+        
         const arenas = await arenasRes.json();
+        console.log("[home-view] Arenas loaded:", arenas.length);
         setResources(Array.isArray(arenas) ? arenas : []);
       } catch (err) {
-        console.error("Failed to load arenas:", err);
+        const message = err instanceof Error ? err.message : "Failed to load arenas";
+        console.error("[home-view] Failed to load arenas:", err);
+        setError(message);
         setResources([]);
       } finally {
         setArenasLoading(false);
@@ -50,11 +77,16 @@ export default function HomeView() {
     };
 
     loadArenas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Initialize selected arena only once when arenas are loaded
   useEffect(() => {
     if (arenasLoading) return;
     if (!resources.length) return;
+    // Only set if no arena is selected yet
+    if (selectedArenaId) return;
+    
     let stored: string | null = null;
     try {
       stored = window.localStorage.getItem(STORAGE_KEY);
@@ -63,10 +95,11 @@ export default function HomeView() {
     }
     const exists = stored && resources.some((arena) => arena.id === stored);
     const nextId = exists ? stored! : resources[0].id;
-    if (nextId && nextId !== selectedArenaId) {
+    if (nextId) {
       setSelectedArenaId(nextId);
     }
-  }, [arenasLoading, resources, selectedArenaId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arenasLoading, resources]);
 
   useEffect(() => {
     if (!selectedArenaId) return;
@@ -107,14 +140,6 @@ export default function HomeView() {
       role.includes("управля")
     );
   })();
-
-  const buildBookingsUrl = (startDate: Date, endDate: Date, arenaId: string) => {
-    const base = `/api/bookings?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
-    if (arenaId) {
-      return `${base}&arenaIds=${encodeURIComponent(arenaId)}`;
-    }
-    return base;
-  };
 
   useEffect(() => {
     const loadEvents = async () => {
