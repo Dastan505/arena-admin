@@ -39,14 +39,16 @@ export default function NewSessionModal({
 
   const inputStyle = {
     width: "100%",
-    padding: "10px 12px",
+    padding: "12px 14px",
     borderRadius: 14,
     background: "rgba(6,11,24,0.6)",
     border: "1px solid rgba(148,163,184,0.24)",
     boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
     color: "white",
     outline: "none",
+    fontSize: "16px", // Prevent iOS zoom on focus
     boxSizing: "border-box" as const,
+    minHeight: "44px", // Better touch target
   };
   const labelStyle = {
     display: "grid",
@@ -66,11 +68,13 @@ export default function NewSessionModal({
     paddingRight: 32,
     appearance: "none" as const,
     WebkitAppearance: "none" as const,
+    minHeight: "44px",
   };
   const selectStyle = {
     ...inputStyle,
     appearance: "none" as const,
     WebkitAppearance: "none" as const,
+    minHeight: "44px",
   };
 
   const categoryOrder = [
@@ -114,20 +118,26 @@ export default function NewSessionModal({
         display: "grid",
         placeItems: "center",
         zIndex: 60,
-        padding: 20,
+        padding: "10px",
+      }}
+      onClick={(e) => {
+        // Close modal when clicking on backdrop
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         style={{
           width: "min(540px, 100%)",
+          maxHeight: "90vh",
+          overflow: "auto",
           background:
             "linear-gradient(180deg, rgba(18,24,41,0.98) 0%, rgba(10,15,30,0.98) 100%)",
           borderRadius: 20,
           border: "1px solid rgba(255,255,255,0.08)",
-          padding: 20,
+          padding: "16px",
           boxShadow: "0 30px 60px rgba(2,6,23,0.65)",
           display: "grid",
-          gap: 16,
+          gap: 12,
         }}
       >
         <div
@@ -213,7 +223,7 @@ export default function NewSessionModal({
 
           <div style={{ display: "grid", gap: 8 }}>
             <div style={sectionTitleStyle}>Время</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
               <label style={labelStyle}>
                 Время начала
                 <input
@@ -288,7 +298,7 @@ export default function NewSessionModal({
                 />
               </label>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 12 }}>
                 <label style={labelStyle}>
                   Текущие
                   <input
@@ -351,7 +361,7 @@ export default function NewSessionModal({
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" as const }}>
           <button
             type="button"
             onClick={onClose}
@@ -359,10 +369,13 @@ export default function NewSessionModal({
               border: "1px solid rgba(255,255,255,0.18)",
               background: "rgba(2,6,23,0.4)",
               color: "white",
-              padding: "10px 16px",
+              padding: "12px 20px",
               borderRadius: 12,
               cursor: "pointer",
               fontWeight: 600,
+              fontSize: "14px",
+              minHeight: "44px",
+              flex: "1 1 auto",
             }}
           >
             Отмена
@@ -375,12 +388,15 @@ export default function NewSessionModal({
               background: "linear-gradient(135deg, #6366f1, #22d3ee)",
               border: "none",
               color: "white",
-              padding: "10px 18px",
+              padding: "12px 20px",
               borderRadius: 12,
               cursor: saving ? "not-allowed" : "pointer",
               fontWeight: 700,
+              fontSize: "14px",
               boxShadow: "0 16px 26px rgba(59,130,246,0.35)",
               opacity: saving ? 0.7 : 1,
+              minHeight: "44px",
+              flex: "1 1 auto",
             }}
           >
             {saving ? "Создаем..." : "Создать сессию"}
