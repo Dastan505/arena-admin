@@ -233,13 +233,32 @@ async function checkTimeConflicts(
   const params = new URLSearchParams();
   params.set(`filter[${FIELD_ARENA}][_eq]`, String(payload.arena));
   params.set(`filter[${FIELD_DATE}][_eq]`, payload.date);
-  const fields = encodeURIComponent(
-    [FIELD_ID, FIELD_START_TIME, FIELD_DURATION, FIELD_MODE].filter(Boolean).join(",")
-  );
-  const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${params.toString()}`;
+  
+  // Try with mode field first, fallback to basic fields on 403
   type BookingResponse = { data?: Array<Record<string, unknown>> };
-  const data = await directusFetchWithToken<BookingResponse>(token, url);
-  const existing = data?.data ?? [];
+  let existing: Array<Record<string, unknown>> = [];
+  
+  try {
+    const fields = encodeURIComponent(
+      [FIELD_ID, FIELD_START_TIME, FIELD_DURATION, FIELD_MODE].filter(Boolean).join(",")
+    );
+    const url = `/items/${BOOKINGS_COLLECTION}?fields=${fields}&${params.toString()}`;
+    const data = await directusFetchWithToken<BookingResponse>(token, url);
+    existing = data?.data ?? [];
+  } catch (error) {
+    // If 403, try without mode field
+    if (error && typeof error === 'object' && 'status' in error && error.status === 403) {
+      console.log("[checkTimeConflicts] No permission for 'mode' field, using basic fields");
+      const basicFields = encodeURIComponent(
+        [FIELD_ID, FIELD_START_TIME, FIELD_DURATION].filter(Boolean).join(",")
+      );
+      const url = `/items/${BOOKINGS_COLLECTION}?fields=${basicFields}&${params.toString()}`;
+      const data = await directusFetchWithToken<BookingResponse>(token, url);
+      existing = data?.data ?? [];
+    } else {
+      throw error;
+    }
+  }
 
   const newStart = buildLocalDateTime(payload.date, payload.start_time);
   if (!newStart) return [];
@@ -387,15 +406,20 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    console.log("[bookings POST] Starting...");
     const token = await getUserToken();
+    console.log("[bookings POST] Token:", token ? "present" : "missing");
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await req.json();
+    console.log("[bookings POST] Body:", JSON.stringify(body, null, 2));
+    
     const arena = body?.arena;
     const date = body?.date;
     const start_time = body?.start_time;
     if (!arena || !date || !start_time) {
+      console.log("[bookings POST] Missing required fields:", { arena, date, start_time });
       return NextResponse.json(
         { error: "Необходимые поля отсутствуют" },
         { status: 400 }
@@ -406,7 +430,9 @@ export async function POST(req: Request) {
       parseNumber(body?.durationMinutes) ??
       parseDurationMinutes(body?.duration) ??
       DEFAULT_DURATION_MINUTES;
+    console.log("[bookings POST] Duration:", durationMinutes);
 
+    console.log("[bookings POST] Checking conflicts...");
     const conflicts = await checkTimeConflicts(token, {
       arena,
       date,
@@ -414,6 +440,8 @@ export async function POST(req: Request) {
       durationMinutes,
       mode: body?.mode,
     });
+    console.log("[bookings POST] Conflicts found:", conflicts.length);
+    
     if (conflicts.length > 0) {
       return NextResponse.json(
         { error: "Конфликт времени", conflicts },
@@ -447,19 +475,27 @@ export async function POST(req: Request) {
 
     const gameValue = parseNumber(bodyRecord?.game);
     if (gameValue != null) payload[FIELD_GAME] = gameValue;
+    
+    // Client handling
+    console.log("[bookings POST] Handling client...");
     let clientValue: string | number | null = parseNumber(bodyRecord?.client);
     if (clientValue == null) {
       const phone = normalizePhone(bodyRecord?.phone);
+      console.log("[bookings POST] Phone:", phone);
       if (phone) {
+        console.log("[bookings POST] Looking for client by phone...");
         const foundId = await findClientIdByPhone(token, phone);
+        console.log("[bookings POST] Found client:", foundId);
         if (foundId) clientValue = foundId;
         if (clientValue == null) {
+          console.log("[bookings POST] Creating new client...");
           const clientPayload: Record<string, unknown> = {
             [FIELD_CLIENT_PHONE]: phone,
             [FIELD_CLIENT_ARENA]: arena,
           };
           if (bodyRecord?.clientName) clientPayload[FIELD_CLIENT_NAME_VALUE] = bodyRecord.clientName;
           const createdId = await createClient(token, clientPayload);
+          console.log("[bookings POST] Created client:", createdId);
           if (createdId) clientValue = createdId;
         }
       }
