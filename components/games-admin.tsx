@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 
-type Game = { id: string; name: string; category?: string | null };
+type Game = { id: string; name: string; category?: string | null; price_per_player?: number | null };
 
 type ApiError = {
   error?: string;
@@ -13,6 +13,7 @@ export default function GamesAdmin() {
   const [games, setGames] = useState<Game[]>([]);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
+  const [pricePerPlayer, setPricePerPlayer] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +61,11 @@ export default function GamesAdmin() {
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, category: category.trim() || null }),
+        body: JSON.stringify({ 
+          name: trimmedName, 
+          category: category.trim() || null,
+          price_per_player: pricePerPlayer.trim() ? Number(pricePerPlayer) : null
+        }),
       });
       if (!res.ok) {
         const errData: ApiError = await res.json().catch(() => ({}));
@@ -68,6 +73,7 @@ export default function GamesAdmin() {
       }
       setName("");
       setCategory("");
+      setPricePerPlayer("");
       await load();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to create";
@@ -135,7 +141,7 @@ export default function GamesAdmin() {
           {error}
         </div>
       )}
-      <div className="mb-4 grid gap-3 md:grid-cols-[2fr_1fr_auto] items-center">
+      <div className="mb-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] items-center">
         <input
           className="flex-1 rounded-md border px-3 py-2 bg-white/80 dark:bg-slate-800"
           placeholder="Название сеанса"
@@ -149,6 +155,14 @@ export default function GamesAdmin() {
           list="session-categories"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+        />
+        <input
+          className="rounded-md border px-3 py-2 bg-white/80 dark:bg-slate-800"
+          placeholder="Цена за чел (₸)"
+          type="number"
+          value={pricePerPlayer}
+          onChange={(e) => setPricePerPlayer(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         />
         <datalist id="session-categories">
@@ -177,7 +191,7 @@ export default function GamesAdmin() {
           >
             <div className="flex-1">
               {editing === g.id ? (
-                <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2 md:grid-cols-3">
                   <input
                     className="w-full rounded-md border px-2 py-1 bg-white/90 dark:bg-slate-900"
                     value={g.name}
@@ -198,15 +212,29 @@ export default function GamesAdmin() {
                       )
                     }
                   />
+                  <input
+                    className="w-full rounded-md border px-2 py-1 bg-white/90 dark:bg-slate-900"
+                    type="number"
+                    placeholder="Цена за чел (₸)"
+                    value={g.price_per_player ?? ""}
+                    onChange={(e) =>
+                      setGames((prev) =>
+                        prev.map((p) => (p.id === g.id ? { ...p, price_per_player: e.target.value ? Number(e.target.value) : null } : p))
+                      )
+                    }
+                  />
                 </div>
               ) : (
                 <div>
                   <div className="font-medium text-slate-900 dark:text-slate-50">{g.name}</div>
-                  {g.category && (
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {g.category}
-                    </div>
-                  )}
+                  <div className="flex gap-2 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {g.category && <span>{g.category}</span>}
+                    {g.price_per_player && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {g.price_per_player.toLocaleString()} ₸/чел
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

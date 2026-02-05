@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import type { GameOption, NewSessionDraft } from "@/lib/types";
 
 type NewSessionModalProps = {
@@ -19,6 +20,14 @@ type NewSessionModalProps = {
   onChangeTime: (time: string) => void;
 };
 
+const categoryOrder = [
+  "Квест игры",
+  "Детские игры", 
+  "Командные игры",
+  "Мероприятия",
+  "Дополнительно",
+];
+
 export default function NewSessionModal({
   open,
   arenaLabel,
@@ -35,56 +44,29 @@ export default function NewSessionModal({
   onChange,
   onChangeTime,
 }: NewSessionModalProps) {
-  if (!open) return null;
+  // Auto-calculate price based on game and player count
+  const selectedGame = useMemo(() => 
+    games.find(g => String(g.id) === draft.gameId),
+    [games, draft.gameId]
+  );
 
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 14,
-    background: "rgba(6,11,24,0.6)",
-    border: "1px solid rgba(148,163,184,0.24)",
-    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
-    color: "white",
-    outline: "none",
-    fontSize: "16px", // Prevent iOS zoom on focus
-    boxSizing: "border-box" as const,
-    minHeight: "44px", // Better touch target
-  };
-  const labelStyle = {
-    display: "grid",
-    gap: 6,
-    fontSize: 12,
-    opacity: 0.9,
-    fontWeight: 600,
-  };
-  const sectionTitleStyle = {
-    fontSize: 12,
-    opacity: 0.6,
-    letterSpacing: 0.3,
-    textTransform: "uppercase" as const,
-  };
-  const timeInputStyle = {
-    ...inputStyle,
-    paddingRight: 32,
-    appearance: "none" as const,
-    WebkitAppearance: "none" as const,
-    minHeight: "44px",
-  };
-  const selectStyle = {
-    ...inputStyle,
-    appearance: "none" as const,
-    WebkitAppearance: "none" as const,
-    minHeight: "44px",
-  };
+  const calculatedPrice = useMemo(() => {
+    if (!selectedGame?.price_per_player) return null;
+    const playerCount = draft.mode === "open" 
+      ? (parseInt(draft.playersCurrent) || 0)
+      : (parseInt(draft.playersCount) || 0);
+    if (playerCount <= 0) return null;
+    return selectedGame.price_per_player * playerCount;
+  }, [selectedGame, draft.playersCount, draft.playersCurrent, draft.mode]);
 
-  const categoryOrder = [
-    "Квест игры",
-    "Детские игры",
-    "Командные игры",
-    "Мероприятия",
-    "Дополнительно",
-  ];
-  const categorizedGames = (() => {
+  // Auto-update price field when calculated price changes
+  useEffect(() => {
+    if (calculatedPrice !== null && calculatedPrice > 0) {
+      onChange({ price: String(calculatedPrice) });
+    }
+  }, [calculatedPrice, onChange]);
+
+  const categorizedGames = useMemo(() => {
     if (!games.length) return [];
     const buckets = new Map<string, GameOption[]>();
     games.forEach((game) => {
@@ -96,310 +78,227 @@ export default function NewSessionModal({
       category,
       games: list.sort((a, b) => a.name.localeCompare(b.name)),
     }));
-    const byOrder = (a: string, b: string) => {
-      const ai = categoryOrder.indexOf(a);
-      const bi = categoryOrder.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
+    return sorted.sort((a, b) => {
+      const ai = categoryOrder.indexOf(a.category);
+      const bi = categoryOrder.indexOf(b.category);
+      if (ai === -1 && bi === -1) return a.category.localeCompare(b.category);
       if (ai === -1) return 1;
       if (bi === -1) return -1;
       return ai - bi;
-    };
-    return sorted.sort((a, b) => byOrder(a.category, b.category));
-  })();
+    });
+  }, [games]);
+
+  const inputClass = "w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-600/50 text-white text-sm focus:outline-none focus:border-blue-500 min-h-[40px]";
+  const labelClass = "text-xs font-medium text-slate-400 uppercase tracking-wide";
+
+  if (!open) return null;
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background:
-          "radial-gradient(circle at top, rgba(99,102,241,0.18), rgba(2,6,23,0.85) 65%)",
-        backdropFilter: "blur(8px)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 60,
-        padding: "10px",
-      }}
-      onClick={(e) => {
-        // Close modal when clicking on backdrop
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div
-        style={{
-          width: "min(540px, 100%)",
-          maxHeight: "90vh",
-          overflow: "auto",
-          background:
-            "linear-gradient(180deg, rgba(18,24,41,0.98) 0%, rgba(10,15,30,0.98) 100%)",
-          borderRadius: 20,
-          border: "1px solid rgba(255,255,255,0.08)",
-          padding: "16px",
-          boxShadow: "0 30px 60px rgba(2,6,23,0.65)",
-          display: "grid",
-          gap: 12,
-        }}
-      >
-        <div
-          style={{
-            height: 2,
-            borderRadius: 999,
-            background: "linear-gradient(90deg, rgba(99,102,241,0.9), rgba(34,211,238,0.9))",
-          }}
-        />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-700 p-4 flex items-center justify-between z-10">
           <div>
-            <div style={{ fontWeight: 700, fontSize: 17 }}>Новая сессия</div>
-            <div style={{ fontSize: 12, opacity: 0.65 }}>
-              {dateLabel} · {timeLabel}
-            </div>
+            <h2 className="text-lg font-bold text-white">Новая запись</h2>
+            <p className="text-xs text-slate-400">{dateLabel} · {timeLabel}</p>
           </div>
           <button
-            type="button"
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "rgba(255,255,255,0.08)",
-              color: "white",
-              padding: "6px 9px",
-              borderRadius: 999,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
+            className="p-2 hover:bg-slate-800 rounded-full transition-colors"
           >
-            ×
+            <span className="text-slate-400 text-xl">×</span>
           </button>
         </div>
 
-        <div
-          style={{
-            fontSize: 12,
-            opacity: 0.7,
-            padding: "6px 10px",
-            borderRadius: 999,
-            border: "1px solid rgba(148,163,184,0.3)",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            width: "fit-content",
-          }}
-        >
-          Арена: {arenaLabel}
-        </div>
+        <div className="p-4 space-y-4">
+          {/* Arena Badge */}
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs">
+            {arenaLabel}
+          </div>
 
-        <div style={{ display: "grid", gap: 12 }}>
-          <label style={labelStyle}>
-            Сеанс
+          {/* Game Selection */}
+          <div className="space-y-1">
+            <label className={labelClass}>Сеанс</label>
             <select
+              className={inputClass}
               value={draft.gameId ?? ""}
-              onChange={(event) => {
-                const id = event.target.value;
-                const selected = games.find((game) => String(game.id) === id);
-                onChange({
-                  gameId: id || undefined,
-                  gameName: selected?.name ?? "",
+              onChange={(e) => {
+                const id = e.target.value;
+                const game = games.find(g => String(g.id) === id);
+                onChange({ 
+                  gameId: id || undefined, 
+                  gameName: game?.name ?? "" 
                 });
               }}
-              style={selectStyle}
             >
               <option value="">
-                {gamesLoading
-                  ? "Загрузка сеансов…"
-                  : games.length === 0
-                    ? "Нет доступных сеансов"
-                    : "Выберите сеанс"}
+                {gamesLoading ? "Загрузка..." : games.length === 0 ? "Нет сеансов" : "Выберите сеанс"}
               </option>
               {categorizedGames.map((group) => (
                 <optgroup key={group.category} label={group.category}>
                   {group.games.map((game) => (
                     <option key={game.id} value={String(game.id)}>
-                      {game.name}
+                      {game.name} {game.price_per_player ? `(${game.price_per_player.toLocaleString()} ₸)` : ""}
                     </option>
                   ))}
                 </optgroup>
               ))}
             </select>
-          </label>
+          </div>
 
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={sectionTitleStyle}>Время</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
-              <label style={labelStyle}>
-                Время начала
-                <input
-                  type="time"
-                  step={900}
-                  value={timeInputValue}
-                  onChange={(event) => onChangeTime(event.target.value)}
-                  style={timeInputStyle}
-                />
-              </label>
-              <label style={labelStyle}>
-                Длительность
-                <select
-                  value={String(draft.durationMinutes)}
-                  onChange={(event) =>
-                    onChange({
-                      durationMinutes: Number(event.target.value) || draft.durationMinutes,
-                    })
-                  }
-                  style={selectStyle}
+          {/* Time Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Время</label>
+              <input
+                type="time"
+                step={900}
+                value={timeInputValue}
+                onChange={(e) => onChangeTime(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className={labelClass}>Длительность</label>
+              <select
+                className={inputClass}
+                value={String(draft.durationMinutes)}
+                onChange={(e) => onChange({ durationMinutes: Number(e.target.value) })}
+              >
+                {durations.map((d) => (
+                  <option key={d} value={d}>{d} мин</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Mode Toggle */}
+          <div className="space-y-1">
+            <label className={labelClass}>Режим</label>
+            <div className="flex gap-2">
+              {(["private", "open"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onChange({ mode })}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    draft.mode === mode
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
                 >
-                  {durations.map((value) => (
-                    <option key={value} value={value}>
-                      {value} мин
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {mode === "private" ? "Приватная" : "Открытая"}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={sectionTitleStyle}>Режим</div>
-            <div style={{ display: "flex", gap: 10 }}>
-              {(["private", "open"] as const).map((mode) => {
-                const active = draft.mode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => onChange({ mode })}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: 12,
-                      border: active
-                        ? "1px solid rgba(99,102,241,0.9)"
-                        : "1px solid rgba(148,163,184,0.3)",
-                      background: active ? "rgba(99,102,241,0.2)" : "rgba(2,6,23,0.4)",
-                      color: "white",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {mode === "private" ? "Приватная" : "Открытая"}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={sectionTitleStyle}>Игроки</div>
-            {draft.mode === "private" ? (
-              <label style={labelStyle}>
-                Количество игроков
-                <input
-                  inputMode="numeric"
-                  value={draft.playersCount}
-                  onChange={(event) => onChange({ playersCount: event.target.value })}
-                  style={inputStyle}
-                />
+          {/* Players & Price Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>
+                {draft.mode === "private" ? "Игроки" : "Текущие"}
               </label>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 12 }}>
-                <label style={labelStyle}>
-                  Текущие
-                  <input
-                    inputMode="numeric"
-                    value={draft.playersCurrent}
-                    onChange={(event) => onChange({ playersCurrent: event.target.value })}
-                    style={inputStyle}
-                  />
-                </label>
-                <label style={labelStyle}>
-                  Максимум
-                  <input
-                    inputMode="numeric"
-                    value={draft.playersCapacity}
-                    onChange={(event) => onChange({ playersCapacity: event.target.value })}
-                    style={inputStyle}
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={sectionTitleStyle}>Данные клиента</div>
-            <label style={labelStyle}>
-              Имя
               <input
-                value={draft.clientName}
-                onChange={(event) => onChange({ clientName: event.target.value })}
-                style={inputStyle}
-              />
-            </label>
-            <label style={labelStyle}>
-              Телефон
-              <input
-                type="tel"
-                inputMode="tel"
-                value={draft.phone}
-                onChange={(event) => onChange({ phone: event.target.value })}
-                style={inputStyle}
-              />
-            </label>
-            <label style={labelStyle}>
-              Комментарий
-              <textarea
-                value={draft.comment}
-                onChange={(event) => onChange({ comment: event.target.value })}
-                style={{ ...inputStyle, minHeight: 70, resize: "vertical" }}
-              />
-            </label>
-            <label style={labelStyle}>
-              Цена (₸)
-              <input
+                type="number"
                 inputMode="numeric"
-                value={draft.price}
-                onChange={(event) => onChange({ price: event.target.value })}
-                style={inputStyle}
+                placeholder="0"
+                value={draft.mode === "private" ? draft.playersCount : draft.playersCurrent}
+                onChange={(e) => onChange({ 
+                  [draft.mode === "private" ? "playersCount" : "playersCurrent"]: e.target.value 
+                })}
+                className={inputClass}
               />
-            </label>
+            </div>
+            <div className="space-y-1">
+              <label className={labelClass}>Итого (₸)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={draft.price}
+                onChange={(e) => onChange({ price: e.target.value })}
+                className={`${inputClass} ${calculatedPrice ? "text-emerald-400 font-medium" : ""}`}
+              />
+              {selectedGame?.price_per_player && (
+                <p className="text-xs text-slate-500">
+                  {selectedGame.price_per_player.toLocaleString()} ₸ × чел
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Open mode - max players */}
+          {draft.mode === "open" && (
+            <div className="space-y-1">
+              <label className={labelClass}>Максимум игроков</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={draft.playersCapacity}
+                onChange={(e) => onChange({ playersCapacity: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          )}
+
+          {/* Client Info */}
+          <div className="space-y-3 pt-2 border-t border-slate-700">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className={labelClass}>Имя клиента</label>
+                <input
+                  type="text"
+                  placeholder="Имя"
+                  value={draft.clientName}
+                  onChange={(e) => onChange({ clientName: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={labelClass}>Телефон</label>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="+7"
+                  value={draft.phone}
+                  onChange={(e) => onChange({ phone: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Комментарий</label>
+              <textarea
+                placeholder="Примечания..."
+                value={draft.comment}
+                onChange={(e) => onChange({ comment: e.target.value })}
+                className={`${inputClass} resize-none`}
+                rows={2}
+              />
+            </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" as const }}>
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-700 p-4 flex gap-3">
           <button
-            type="button"
             onClick={onClose}
-            style={{
-              border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(2,6,23,0.4)",
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: 12,
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: "14px",
-              minHeight: "44px",
-              flex: "1 1 auto",
-            }}
+            className="flex-1 py-3 px-4 rounded-xl bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition-colors"
           >
             Отмена
           </button>
           <button
-            type="button"
             onClick={onCreate}
-            disabled={saving}
-            style={{
-              background: "linear-gradient(135deg, #6366f1, #22d3ee)",
-              border: "none",
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: 12,
-              cursor: saving ? "not-allowed" : "pointer",
-              fontWeight: 700,
-              fontSize: "14px",
-              boxShadow: "0 16px 26px rgba(59,130,246,0.35)",
-              opacity: saving ? 0.7 : 1,
-              minHeight: "44px",
-              flex: "1 1 auto",
-            }}
+            disabled={saving || !draft.gameId}
+            className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium hover:from-blue-500 hover:to-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            {saving ? "Создаем..." : "Создать сессию"}
+            {saving ? "Создание..." : "Записать"}
           </button>
         </div>
       </div>

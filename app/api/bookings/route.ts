@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { directusFetchWithToken } from "@/lib/directus";
+import { directusFetchWithToken, directusFetch, DIRECTUS_TOKEN } from "@/lib/directus";
 import { getValidToken } from "@/lib/auth";
 
 const BOOKINGS_COLLECTION = "bookings";
@@ -93,19 +93,42 @@ async function findClientIdByPhone(token: string, phone: string): Promise<string
   const fields = encodeURIComponent("id");
   const url = `/items/${CLIENTS_COLLECTION}?fields=${fields}&${params.toString()}`;
   type ClientResponse = { data?: Array<{ id?: string | number }> };
-  const data = await directusFetchWithToken<ClientResponse>(token, url);
-  const idValue = data?.data?.[0]?.id;
-  return idValue != null ? String(idValue) : null;
+  try {
+    const data = await directusFetchWithToken<ClientResponse>(token, url);
+    const idValue = data?.data?.[0]?.id;
+    return idValue != null ? String(idValue) : null;
+  } catch (error) {
+    // Fallback to service token on 403
+    if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
+      const data = await directusFetch<ClientResponse>(url);
+      const idValue = data?.data?.[0]?.id;
+      return idValue != null ? String(idValue) : null;
+    }
+    throw error;
+  }
 }
 
 async function createClient(token: string, payload: Record<string, unknown>): Promise<string | null> {
   type ClientCreateResponse = { data?: { id?: string | number }; id?: string | number };
-  const created = await directusFetchWithToken<ClientCreateResponse>(token, `/items/${CLIENTS_COLLECTION}`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  const idValue = created?.data?.id ?? created?.id;
-  return idValue != null ? String(idValue) : null;
+  try {
+    const created = await directusFetchWithToken<ClientCreateResponse>(token, `/items/${CLIENTS_COLLECTION}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const idValue = created?.data?.id ?? created?.id;
+    return idValue != null ? String(idValue) : null;
+  } catch (error) {
+    // Fallback to service token on 403
+    if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
+      const created = await directusFetch<ClientCreateResponse>(`/items/${CLIENTS_COLLECTION}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const idValue = created?.data?.id ?? created?.id;
+      return idValue != null ? String(idValue) : null;
+    }
+    throw error;
+  }
 }
 
 async function getUserToken(): Promise<string | null> {
@@ -436,10 +459,25 @@ export async function POST(req: Request) {
     }
     if (clientValue != null) payload[FIELD_CLIENT] = clientValue;
 
-    const created = await directusFetchWithToken(token, `/items/${BOOKINGS_COLLECTION}`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    // Try with user token first, fallback to service token on 403
+    let created;
+    try {
+      created = await directusFetchWithToken(token, `/items/${BOOKINGS_COLLECTION}`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      // If 403 and service token available, retry with service token
+      if (error && typeof error === 'object' && 'status' in error && error.status === 403 && DIRECTUS_TOKEN) {
+        console.log("User token 403, falling back to service token for booking creation");
+        created = await directusFetch(`/items/${BOOKINGS_COLLECTION}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        throw error;
+      }
+    }
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {

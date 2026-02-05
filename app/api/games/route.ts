@@ -32,12 +32,13 @@ export async function GET() {
       data = await getGamesWithServiceToken() as GamesResponse;
     } catch (err) {
       console.warn("/api/games GET fallback to id,name:", err);
-      data = await directusFetch(`/items/${COLLECTION}?fields=id,name&sort=name`) as GamesResponse;
+      data = await directusFetch(`/items/${COLLECTION}?fields=id,name,category,price_per_player&sort=name`) as GamesResponse;
     }
     interface GameItem {
       id: string | number;
       name: string;
       category?: string | null;
+      price_per_player?: number | null;
     }
     
     const items = (data?.data ?? []).map((it: unknown) => {
@@ -46,6 +47,7 @@ export async function GET() {
         id: String(game.id),
         name: game.name,
         category: game.category ?? null,
+        price_per_player: game.price_per_player ?? null,
       };
     });
     return NextResponse.json(items);
@@ -71,6 +73,9 @@ export async function POST(request: Request) {
     const payload: Record<string, unknown> = { name: body.name.trim() };
     if (body?.category && typeof body.category === "string") {
       payload.category = body.category.trim();
+    }
+    if (body?.price_per_player !== undefined) {
+      payload.price_per_player = Number(body.price_per_player) || null;
     }
 
     const res = await directusFetchWithToken(token, `/items/${COLLECTION}`, {
