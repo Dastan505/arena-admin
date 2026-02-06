@@ -46,6 +46,7 @@ export default function ScheduleTable({
     phone: "",
     comment: "",
     price: "",
+    prepaid: "", // предоплата
     status: "new",
   };
 
@@ -187,6 +188,7 @@ export default function ScheduleTable({
       }
       if (playersValue) payload.players = playersValue;
       if (draft.price.trim() !== "") payload.price = draft.price;
+      if (draft.prepaid.trim() !== "") payload.prepaid = draft.prepaid;
       if (mergedComment) payload.comment = mergedComment;
       if (draft.clientName.trim()) payload.clientName = draft.clientName.trim();
       if (draft.phone.trim()) payload.phone = draft.phone.trim();

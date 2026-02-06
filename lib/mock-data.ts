@@ -35,6 +35,7 @@ export const NEW_SESSION_BASE: Omit<NewSessionDraft, "open" | "start" | "arenaId
   phone: "",
   comment: "",
   price: "",
+  prepaid: "", // предоплата
   durationMinutes: 60,
   status: "planned",
 };

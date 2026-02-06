@@ -28,6 +28,7 @@ const DEFAULT_DRAFT: NewSessionDraft = {
   phone: "",
   comment: "",
   price: "",
+  prepaid: "", // предоплата
   status: "new",
 };
 

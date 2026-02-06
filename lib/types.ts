@@ -17,6 +17,7 @@ export type CalEventExtended = {
   phone?: string | null;
   comment?: string | null;
   price?: string | null;
+  prepaid?: string | null; // предоплата
 };
 
 export type CalEvent = {
@@ -76,6 +77,7 @@ export type NewSessionDraft = {
   phone: string;
   comment: string;
   price: string;
+  prepaid: string; // предоплата
   status: string;
 };
 
@@ -98,6 +100,7 @@ export type BookingCreate = {
   phone?: string;
   comment?: string;
   price?: number | string;
+  prepaid?: number | string; // предоплата
 };
 
 export type BookingUpdate = Partial<BookingCreate> & { id: string | number };

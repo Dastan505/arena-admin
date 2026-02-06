@@ -91,6 +91,9 @@ export default function NewSessionModal({
   const inputClass = "w-full px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-600/50 text-white text-sm focus:outline-none focus:border-blue-500 min-h-[40px]";
   const labelClass = "text-xs font-medium text-slate-400 uppercase tracking-wide";
 
+  // Debug
+  console.log("[NewSessionModal] games:", games.length, "categorizedGames:", categorizedGames.length, "open:", open);
+
   if (!open) return null;
 
   return (
@@ -114,11 +117,6 @@ export default function NewSessionModal({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Arena Badge */}
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs">
-            {arenaLabel}
-          </div>
-
           {/* Game Selection */}
           <div className="space-y-1">
             <label className={labelClass}>Сеанс</label>
@@ -227,6 +225,35 @@ export default function NewSessionModal({
                 <p className="text-xs text-slate-500">
                   {selectedGame.price_per_player.toLocaleString()} ₸ × чел
                 </p>
+              )}
+            </div>
+          </div>
+
+          {/* Payment row - Prepaid & Balance */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className={labelClass}>Предоплата (₸)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={draft.prepaid}
+                onChange={(e) => onChange({ prepaid: e.target.value })}
+                className={`${inputClass} ${Number(draft.prepaid) > 0 ? "text-amber-400 font-medium" : ""}`}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className={labelClass}>Остаток (₸)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                placeholder="0"
+                value={Math.max(0, (Number(draft.price) || 0) - (Number(draft.prepaid) || 0))}
+                readOnly
+                className={`${inputClass} bg-slate-800/30 ${(Number(draft.price) || 0) - (Number(draft.prepaid) || 0) > 0 ? "text-rose-400 font-medium" : "text-emerald-400"}`}
+              />
+              {(Number(draft.price) || 0) - (Number(draft.prepaid) || 0) <= 0 && (
+                <p className="text-xs text-emerald-500">✓ Полностью оплачено</p>
               )}
             </div>
           </div>

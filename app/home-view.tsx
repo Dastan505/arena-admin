@@ -29,6 +29,7 @@ const DEFAULT_DRAFT: NewSessionDraft = {
   phone: "",
   comment: "",
   price: "",
+  prepaid: "", // предоплата
   status: "new",
 };
 
@@ -91,14 +92,14 @@ export default function HomeView() {
         console.log("[home-view] Arenas response status:", arenasRes.status);
         
         if (!arenasRes.ok) {
-          const errData = await arenasRes.json().catch(() => ({ error: "Unknown error" }));
-          console.error("[home-view] Arenas error:", errData);
+          const errText = await arenasRes.text().catch(() => "Unknown error");
+          console.error("[home-view] Arenas error:", arenasRes.status, errText);
           if (arenasRes.status === 401) {
             console.log("[home-view] Unauthorized, redirecting to login");
-            router.push("/login");
+            window.location.href = "/login";
             return;
           }
-          throw new Error(errData.error || errData.details || `HTTP ${arenasRes.status}`);
+          throw new Error(`HTTP ${arenasRes.status}: ${errText.substring(0, 100)}`);
         }
         
         const arenas = await arenasRes.json();
@@ -359,6 +360,7 @@ export default function HomeView() {
       }
       if (playersValue) payload.players = playersValue;
       if (draft.price.trim() !== "") payload.price = draft.price;
+      if (draft.prepaid.trim() !== "") payload.prepaid = draft.prepaid;
       if (mergedComment) payload.comment = mergedComment;
       if (draft.clientName.trim()) payload.clientName = draft.clientName.trim();
       if (draft.phone.trim()) payload.phone = draft.phone.trim();

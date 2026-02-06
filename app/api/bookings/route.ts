@@ -20,6 +20,7 @@ const FIELD_MODE = "mode";
 const FIELD_PLAYERS = "players";
 const FIELD_COMMENT = "comment";
 const FIELD_PRICE_TOTAL = "price_total";
+const FIELD_PREPAID = "prepaid"; // предоплата
 const CLIENTS_COLLECTION = "clients";
 const FIELD_CLIENT_PHONE = "phone";
 const FIELD_CLIENT_NAME_VALUE = "name";
@@ -470,6 +471,9 @@ export async function POST(req: Request) {
 
     const priceValue = parseNumber(bodyRecord?.price);
     if (priceValue != null) payload[FIELD_PRICE_TOTAL] = priceValue;
+
+    const prepaidValue = parseNumber(bodyRecord?.prepaid);
+    if (prepaidValue != null) payload[FIELD_PREPAID] = prepaidValue;
 
     if (bodyRecord?.comment) payload[FIELD_COMMENT] = bodyRecord.comment;
 
