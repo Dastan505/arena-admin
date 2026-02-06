@@ -179,6 +179,10 @@ DIRECTUS_SERVICE_TOKEN=optional_fallback_token
 - ✅ Логирование для диагностики
 - ✅ Документация permissions
 
+### 2026-02-06
+- ✅ В NewSessionModal восстановлен выбор сеанса: исправлен JSX-комментарий в `components/new-session-modal.tsx` (`{/* Game Selection */}`), который скрывал блок селекта.
+- ✅ Добавлена вместимость филиала (поле `capacity` у `arenas`): сервер учитывает лимит при проверке конфликтов, а расписание скрывает “+ Добавить” при заполнении слота.
+
 ### TODO:
 - [ ] Настроить permissions в Directus (mode field)
 - [ ] Заполнить price_per_player у игр

@@ -6,6 +6,7 @@ const ARENAS_COLLECTION = "arenas";
 const ARENA_ID_FIELD = "id";
 const ARENA_TITLE_FIELD = "name";
 const ARENA_ADDRESS_FIELD = "address";
+const ARENA_CAPACITY_FIELD = "capacity";
 const ARENA_SORT_FIELD = ARENA_TITLE_FIELD;
 
 const ROLE_ALLOWLIST = ["admin", "director", "owner", "директор", "управля"];
@@ -36,6 +37,7 @@ interface ArenaData {
   name?: string;
   title?: string;
   address?: string | null;
+  capacity?: number | null;
 }
 
 interface ArenasResponse {
@@ -53,14 +55,14 @@ export async function GET() {
     console.log("[arenas GET] Token exists, DIRECTUS_URL:", DIRECTUS_URL ? "configured" : "MISSING");
     let data: ArenasResponse | null = null;
     try {
-      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD].join(",");
+      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD, ARENA_CAPACITY_FIELD].join(",");
       const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
       console.log("[arenas GET] Fetching from Directus:", url);
       data = await directusFetchWithToken<ArenasResponse>(token, url);
       console.log("[arenas GET] Data received, count:", data?.data?.length ?? 0);
     } catch (err) {
       console.warn("[arenas GET] Primary fetch failed, trying fallback:", err);
-      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD].join(",");
+      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_CAPACITY_FIELD].join(",");
       const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
       data = await directusFetchWithToken<ArenasResponse>(token, url);
     }
@@ -70,6 +72,11 @@ export async function GET() {
       title: arena?.[ARENA_TITLE_FIELD as keyof ArenaData] ?? `Arena ${arena?.[ARENA_ID_FIELD as keyof ArenaData]}`,
       name: arena?.[ARENA_TITLE_FIELD as keyof ArenaData] ?? null,
       address: arena?.[ARENA_ADDRESS_FIELD as keyof ArenaData] ?? null,
+      capacity: (() => {
+        const raw = arena?.[ARENA_CAPACITY_FIELD as keyof ArenaData];
+        const numeric = typeof raw === "number" ? raw : Number(raw);
+        return Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : null;
+      })(),
     }));
 
     return NextResponse.json(arenas);
@@ -102,8 +109,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const name = String((body as Record<string, unknown>)?.name ?? "").trim();
-    const address = String((body as Record<string, unknown>)?.address ?? "").trim();
+    const bodyRecord = body as Record<string, unknown>;
+    const name = String(bodyRecord?.name ?? "").trim();
+    const address = String(bodyRecord?.address ?? "").trim();
+    const capacityRaw = bodyRecord?.capacity;
+    const capacityNum = typeof capacityRaw === "number" ? capacityRaw : Number(capacityRaw);
     if (!name) {
       return NextResponse.json({ error: "Missing name" }, { status: 400 });
     }
@@ -111,6 +121,9 @@ export async function POST(request: Request) {
       [ARENA_TITLE_FIELD]: name,
     };
     if (address) payload[ARENA_ADDRESS_FIELD] = address;
+    if (Number.isFinite(capacityNum) && capacityNum > 0) {
+      payload[ARENA_CAPACITY_FIELD] = Math.floor(capacityNum);
+    }
 
     const created = await directusFetchWithToken(token, `/items/${ARENAS_COLLECTION}`, {
       method: "POST",
@@ -143,6 +156,8 @@ export async function PATCH(request: Request) {
     const id = bodyRecord?.id;
     const name = String(bodyRecord?.name ?? "").trim();
     const address = String(bodyRecord?.address ?? "").trim();
+    const capacityRaw = bodyRecord?.capacity;
+    const capacityNum = typeof capacityRaw === "number" ? capacityRaw : Number(capacityRaw);
     if (!id || !name) {
       return NextResponse.json({ error: "Missing id or name" }, { status: 400 });
     }
@@ -151,6 +166,11 @@ export async function PATCH(request: Request) {
       [ARENA_TITLE_FIELD]: name,
     };
     payload[ARENA_ADDRESS_FIELD] = address || null;
+    if (Number.isFinite(capacityNum) && capacityNum > 0) {
+      payload[ARENA_CAPACITY_FIELD] = Math.floor(capacityNum);
+    } else {
+      payload[ARENA_CAPACITY_FIELD] = null;
+    }
 
     const updated = await directusFetchWithToken(token, `/items/${ARENAS_COLLECTION}/${id}`, {
       method: "PATCH",

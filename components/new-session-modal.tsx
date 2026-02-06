@@ -117,7 +117,6 @@ export default function NewSessionModal({
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Game Selection */}
           <div className="space-y-1">
             <label className={labelClass}>Сеанс</label>
             <select

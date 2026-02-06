@@ -22,6 +22,9 @@ const FIELD_COMMENT = "comment";
 const FIELD_PRICE_TOTAL = "price_total";
 const FIELD_PREPAID = "prepaid"; // предоплата
 const CLIENTS_COLLECTION = "clients";
+const ARENAS_COLLECTION = "arenas";
+const ARENA_CAPACITY_FIELD = "capacity";
+const DEFAULT_ARENA_CAPACITY = 1;
 const FIELD_CLIENT_PHONE = "phone";
 const FIELD_CLIENT_NAME_VALUE = "name";
 const FIELD_CLIENT_ARENA = "arena";
@@ -119,6 +122,7 @@ async function createClient(token: string, payload: Record<string, unknown>): Pr
       method: "POST",
       body: JSON.stringify(payload),
     });
+
     const idValue = created?.data?.id ?? created?.id;
     console.log("[createClient] Created with user token, id:", idValue);
     return idValue != null ? String(idValue) : null;
@@ -216,6 +220,31 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+async function getArenaCapacity(token: string, arenaId: string | number): Promise<number> {
+  const fallback = DEFAULT_ARENA_CAPACITY;
+  if (arenaId == null || arenaId === "") return fallback;
+  const url = `/items/${ARENAS_COLLECTION}/${arenaId}?fields=${ARENA_CAPACITY_FIELD}`;
+  type ArenaResponse = { data?: Record<string, unknown> };
+  try {
+    const data = await directusFetchWithToken<ArenaResponse>(token, url);
+    const raw = data?.data?.[ARENA_CAPACITY_FIELD as keyof Record<string, unknown>];
+    const cap = parseNumber(raw);
+    return cap && cap > 0 ? Math.floor(cap) : fallback;
+  } catch (error) {
+    if (error && typeof error === "object" && "status" in error && error.status === 403 && DIRECTUS_TOKEN) {
+      try {
+        const data = await directusFetch<ArenaResponse>(url);
+        const raw = data?.data?.[ARENA_CAPACITY_FIELD as keyof Record<string, unknown>];
+        const cap = parseNumber(raw);
+        return cap && cap > 0 ? Math.floor(cap) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+    return fallback;
+  }
+}
+
 interface CheckConflictsPayload {
   arena: string | number;
   date: string;
@@ -228,8 +257,7 @@ async function checkTimeConflicts(
   token: string,
   payload: CheckConflictsPayload
 ) {
-  const newMode = String(payload.mode ?? "private").toLowerCase();
-  if (newMode === "open") return [];
+  const arenaCapacity = await getArenaCapacity(token, payload.arena);
 
   const params = new URLSearchParams();
   params.set(`filter[${FIELD_ARENA}][_eq]`, String(payload.arena));
@@ -267,7 +295,7 @@ async function checkTimeConflicts(
     newStart.getTime() + payload.durationMinutes * 60 * 1000
   );
 
-  return existing.filter((booking: Record<string, unknown>) => {
+  const conflicts = existing.filter((booking: Record<string, unknown>) => {
     const existingStart = buildLocalDateTime(
       booking?.[FIELD_DATE] ?? payload.date,
       booking?.[FIELD_START_TIME]
@@ -282,6 +310,9 @@ async function checkTimeConflicts(
     const overlaps = newStart < existingEnd && newEnd > existingStart;
     return overlaps;
   });
+
+  return conflicts.length >= arenaCapacity ? conflicts : [];
+
 }
 
 export async function GET(req: Request) {

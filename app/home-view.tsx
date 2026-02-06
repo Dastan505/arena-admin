@@ -489,7 +489,7 @@ export default function HomeView() {
     });
 
     return { occupancyByDay: occupancy };
-  }, [events, currentMonth, filteredResources.length]);
+  }, [events, currentMonth, filteredResources]);
 
   const getDayRingClass = (ratio: number) => {
     if (!ratio || ratio <= 0) return "";

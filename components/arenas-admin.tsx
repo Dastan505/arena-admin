@@ -6,6 +6,7 @@ type Arena = {
   id: string;
   name: string;
   address?: string | null;
+  capacity?: number | null;
 };
 
 const ROLE_ALLOWLIST = ["admin", "director", "owner", "директор", "управля"];
@@ -14,6 +15,7 @@ export default function ArenasAdmin() {
   const [arenas, setArenas] = useState<Arena[]>([]);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [capacity, setCapacity] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
@@ -45,10 +47,11 @@ export default function ArenasAdmin() {
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       setArenas(
-        list.map((item: { id: string | number; name?: string; title?: string; address?: string | null }) => ({
+        list.map((item: { id: string | number; name?: string; title?: string; address?: string | null; capacity?: number | null }) => ({
           id: String(item.id),
           name: item.name ?? item.title ?? "",
           address: item.address ?? null,
+          capacity: typeof item.capacity === "number" ? item.capacity : (item.capacity != null ? Number(item.capacity) : null),
         }))
       );
     } catch (err) {
@@ -74,7 +77,7 @@ export default function ArenasAdmin() {
       const res = await fetch("/api/arenas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), address: address.trim() }),
+        body: JSON.stringify({ name: name.trim(), address: address.trim(), capacity: capacity.trim() }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -83,6 +86,7 @@ export default function ArenasAdmin() {
       }
       setName("");
       setAddress("");
+      setCapacity("");
       await loadArenas();
     } catch (err) {
       console.error(err);
@@ -106,6 +110,7 @@ export default function ArenasAdmin() {
           id,
           name: arena.name,
           address: arena.address ?? "",
+          capacity: arena.capacity ?? null,
         }),
       });
       if (!res.ok) {
@@ -154,7 +159,7 @@ export default function ArenasAdmin() {
   return (
     <div className="p-6">
       <div className="mb-4 space-y-2">
-        <div className="grid gap-3 md:grid-cols-[2fr_2fr_auto] items-center">
+        <div className="grid gap-3 md:grid-cols-[2fr_2fr_1fr_auto] items-center">
           <input
             className="rounded-md border px-3 py-2 bg-white/80 dark:bg-slate-800"
             placeholder={placeholder}
@@ -167,6 +172,15 @@ export default function ArenasAdmin() {
             placeholder="Адрес"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
+            disabled={!canEdit}
+          />
+          <input
+            className="rounded-md border px-3 py-2 bg-white/80 dark:bg-slate-800"
+            placeholder="Площадок"
+            type="number"
+            min="1"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
             disabled={!canEdit}
           />
           <button
@@ -196,7 +210,7 @@ export default function ArenasAdmin() {
             className="flex flex-col gap-3 bg-white/60 dark:bg-slate-800 rounded-md p-3 border"
           >
             {editingId === arena.id ? (
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-3">
                 <input
                   className="rounded-md border px-2 py-1 bg-white/90 dark:bg-slate-900"
                   value={arena.name}
@@ -217,12 +231,33 @@ export default function ArenasAdmin() {
                   }
                   disabled={!canEdit}
                 />
+                <input
+                  className="rounded-md border px-2 py-1 bg-white/90 dark:bg-slate-900"
+                  type="number"
+                  min="1"
+                  value={arena.capacity ?? ""}
+                  onChange={(e) =>
+                    setArenas((prev) =>
+                      prev.map((item) =>
+                        item.id === arena.id
+                          ? { ...item, capacity: e.target.value ? Number(e.target.value) : null }
+                          : item
+                      )
+                    )
+                  }
+                  disabled={!canEdit}
+                />
               </div>
             ) : (
               <div>
                 <div className="font-medium text-slate-900 dark:text-slate-50">{arena.name}</div>
                 {arena.address && (
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{arena.address}</div>
+                )}
+                {arena.capacity && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Площадок: {arena.capacity}
+                  </div>
                 )}
               </div>
             )}

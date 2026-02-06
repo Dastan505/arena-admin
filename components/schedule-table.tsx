@@ -366,6 +366,8 @@ export default function ScheduleTable({
                 </td>
                 {resources.map((arena) => {
                   const slotEvents = getEventsForSlot(arena.id, timeSlot);
+                  const arenaCapacity = Math.max(1, Number(arena.capacity ?? 1));
+                  const isFull = slotEvents.length >= arenaCapacity;
                   return (
                     <td
                       key={`${arena.id}-${timeSlot}`}
@@ -406,12 +408,18 @@ export default function ScheduleTable({
                               </div>
                             );
                           })}
-                          <button
-                            onClick={() => handleAddClick(arena.id, timeSlot, true)}
-                            className="w-full text-center text-slate-400 dark:text-slate-500 text-xs py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors font-semibold hover:text-blue-600 dark:hover:text-blue-400"
-                          >
-                            + Добавить ещё
-                          </button>
+                          {!isFull ? (
+                            <button
+                              onClick={() => handleAddClick(arena.id, timeSlot, true)}
+                              className="w-full text-center text-slate-400 dark:text-slate-500 text-xs py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors font-semibold hover:text-blue-600 dark:hover:text-blue-400"
+                            >
+                              + Добавить ещё
+                            </button>
+                          ) : (
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 text-center py-2">
+                              Заполнено {slotEvents.length}/{arenaCapacity}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <button

@@ -79,17 +79,17 @@ export default function TimelineView({
     onSlotClick?.(arenaId, time);
   };
 
-  // Check if slot has an event
-  const hasEventAtSlot = (arenaId: string, hour: number, minute: number) => {
+  // Count events that cover a slot (for capacity-aware clicks)
+  const getSlotEventCount = (arenaId: string, hour: number, minute: number) => {
     const slotTime = hour * 60 + minute;
-    return getArenaEvents(arenaId).some(event => {
+    return getArenaEvents(arenaId).filter((event) => {
       if (!event.start || !event.end) return false;
       const start = new Date(event.start);
       const end = new Date(event.end);
       const eventStart = start.getHours() * 60 + start.getMinutes();
       const eventEnd = end.getHours() * 60 + end.getMinutes();
       return slotTime >= eventStart && slotTime < eventEnd;
-    });
+    }).length;
   };
 
   return (
@@ -128,7 +128,9 @@ export default function TimelineView({
             {timeSlots.map((time, index) => {
               const hour = Math.floor(START_HOUR + index / 2);
               const minute = (index % 2) * 30;
-              const hasEvent = hasEventAtSlot(arena.id, hour, minute);
+              const slotCount = getSlotEventCount(arena.id, hour, minute);
+              const arenaCapacity = Math.max(1, Number(arena.capacity ?? 1));
+              const isFull = slotCount >= arenaCapacity;
               const isHovered = hoveredSlot?.arenaId === arena.id && hoveredSlot?.time === `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
               
               return (
@@ -136,15 +138,15 @@ export default function TimelineView({
                   key={time}
                   className={`relative border-b transition-colors cursor-pointer group
                     ${time.endsWith(":00") ? "border-slate-600" : "border-slate-700/30"}
-                    ${!hasEvent ? "hover:bg-slate-800/50" : ""}
+                    ${!isFull ? "hover:bg-slate-800/50" : ""}
                   `}
                   style={{ height: `${PIXELS_PER_HOUR / 2}px` }}
-                  onClick={() => !hasEvent && handleSlotClick(arena.id, hour, minute)}
+                  onClick={() => !isFull && handleSlotClick(arena.id, hour, minute)}
                   onMouseEnter={() => setHoveredSlot({arenaId: arena.id, time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`})}
                   onMouseLeave={() => setHoveredSlot(null)}
                 >
                   {/* Add button on hover */}
-                  {!hasEvent && isHovered && (
+                  {!isFull && isHovered && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-full shadow-lg transition-all">
                         <Plus size={14} />
@@ -154,7 +156,7 @@ export default function TimelineView({
                   )}
                   
                   {/* Small + indicator always visible on hover */}
-                  {!hasEvent && (
+                  {!isFull && (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
                         <Plus size={12} className="text-blue-400" />
