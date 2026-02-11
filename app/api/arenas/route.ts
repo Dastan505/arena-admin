@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { directusFetchWithToken, DIRECTUS_URL } from "@/lib/directus";
+import { directusFetchWithToken, directusFetch, DIRECTUS_URL, DIRECTUS_TOKEN } from "@/lib/directus";
 import { getValidToken } from "@/lib/auth";
 
 const ARENAS_COLLECTION = "arenas";
@@ -54,6 +54,8 @@ export async function GET() {
     
     console.log("[arenas GET] Token exists, DIRECTUS_URL:", DIRECTUS_URL ? "configured" : "MISSING");
     let data: ArenasResponse | null = null;
+    
+    // Try with user token first, fallback to service token on 403
     try {
       const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD, ARENA_CAPACITY_FIELD].join(",");
       const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
@@ -61,10 +63,22 @@ export async function GET() {
       data = await directusFetchWithToken<ArenasResponse>(token, url);
       console.log("[arenas GET] Data received, count:", data?.data?.length ?? 0);
     } catch (err) {
-      console.warn("[arenas GET] Primary fetch failed, trying fallback:", err);
-      const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_CAPACITY_FIELD].join(",");
-      const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
-      data = await directusFetchWithToken<ArenasResponse>(token, url);
+      console.warn("[arenas GET] User token fetch failed:", err);
+      // If 403 and service token available, retry with service token
+      if (err && typeof err === 'object' && 'status' in err && err.status === 403 && DIRECTUS_TOKEN) {
+        console.log("[arenas GET] Falling back to service token");
+        try {
+          const fields = [ARENA_ID_FIELD, ARENA_TITLE_FIELD, ARENA_ADDRESS_FIELD, ARENA_CAPACITY_FIELD].join(",");
+          const url = `/items/${ARENAS_COLLECTION}?fields=${fields}&sort=${ARENA_SORT_FIELD}`;
+          data = await directusFetch<ArenasResponse>(url);
+          console.log("[arenas GET] Data received with service token, count:", data?.data?.length ?? 0);
+        } catch (serviceErr) {
+          console.error("[arenas GET] Service token also failed:", serviceErr);
+          throw serviceErr;
+        }
+      } else {
+        throw err;
+      }
     }
 
     const arenas = (data?.data ?? []).map((arena: ArenaData) => ({
@@ -86,9 +100,15 @@ export async function GET() {
     console.error("[arenas GET] Error:", message);
     console.error("[arenas GET] Stack:", stack);
     
+    // Extract Directus error details if available
+    let errorDetails = message;
+    if (error && typeof error === 'object' && 'status' in error) {
+      errorDetails = `Directus error ${error.status}: ${message}`;
+    }
+    
     const payload: Record<string, string> = {
       error: "Failed to load arenas. Check Directus settings.",
-      details: message,
+      details: errorDetails,
     };
     return NextResponse.json(payload, { status: 500 });
   }
